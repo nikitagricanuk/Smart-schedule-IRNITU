@@ -1,4 +1,5 @@
 import os
+import re
 from pymongo import MongoClient
 
 MONGO_DB_ADDR = os.environ.get('MONGO_DB_ADDR')
@@ -78,11 +79,21 @@ class MongodbService(object):
 
     def get_courses(self, institute='') -> list:
         """возвращает список курсов у определённого института"""
-        return list(self._db.courses.find(filter={'institute': {'$regex': f'{institute}*'}}))
+        if not institute:
+            return []
+        institute_prefix = re.escape(institute.strip())
+        return list(self._db.courses.find(
+            filter={'institute': {'$regex': f'^{institute_prefix}', '$options': 'i'}}
+        ))
 
     def get_groups(self, institute: str, course: str) -> list:
         """возвращает список групп на определённом курсе в определеннои институте"""
-        return list(self._db.groups.find(filter={'institute': {'$regex': f'{institute}*'}, 'course': course}))
+        if not institute or not course:
+            return []
+        institute_prefix = re.escape(institute.strip())
+        return list(self._db.groups.find(
+            filter={'institute': {'$regex': f'^{institute_prefix}', '$options': 'i'}, 'course': course}
+        ))
 
     # Поиск по ФИО преподавателя или его части
     def get_register_list_prep(self, search_words: str) -> list:
