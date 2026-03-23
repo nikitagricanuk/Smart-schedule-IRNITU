@@ -192,8 +192,11 @@ def processing_schedule():
     """Обработка расписания"""
     logger.info('Start processing_schedule...')
     start_time1 = time.time()
-
-    pg_schedule = postgre_storage.get_schedule()
+    try:
+        pg_schedule = postgre_storage.get_schedule()
+    except psycopg2.OperationalError as e:
+        logger.error(f'Postgre error:\n{e}')
+        return
 
     # Расписание студентов
     try:
@@ -287,7 +290,7 @@ def main():
         # Время начала работы цикла.
         start_time = time.time()
 
-        if SCHEDULE_SOURCE == 'postgres':
+        if SCHEDULE_SOURCE == 'postgres' and os.environ.get('PG_DB_HOST'):
             # Институты
             processing_institutes()
 
@@ -300,6 +303,8 @@ def main():
             # Расписание
             processing_schedule()
         else:
+            if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
+                logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU website parser.')
             processing_schedule_from_website()
 
         # Обновление базы экзаменов

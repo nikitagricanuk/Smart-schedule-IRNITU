@@ -16,20 +16,20 @@ services:
       - FUNCTIONS_API_URL=http://functions_api/api/
       - EXAMS_API=${EXAMS_API}
 
-  vk_bot:
-    build: vk_bot/
-    logging:
-      options:
-        max-size: "200M"
-        max-file: "4"
-    restart: always
-    environment:
-      - VK=${VK_TOKEN} # токен telegram бота
-      - MONGO_DB_ADDR=mongodb # адрес mongoDB
-      - MONGO_DB_PORT=27017 # порт mongoDB
-      - MONGO_DB_DATABASE=Smart_schedule_IRNITU # название базы данных
-      - FUNCTIONS_API_URL=http://functions_api/api/
-      - EXAMS_API=${EXAMS_API}
+#  vk_bot:
+#    build: vk_bot/
+#    logging:
+#      options:
+#        max-size: "200M"
+#        max-file: "4"
+#    restart: always
+#    environment:
+#      - VK=${VK_TOKEN} # токен telegram бота
+#      - MONGO_DB_ADDR=mongodb # адрес mongoDB
+#      - MONGO_DB_PORT=27017 # порт mongoDB
+#      - MONGO_DB_DATABASE=Smart_schedule_IRNITU # название базы данных
+#      - FUNCTIONS_API_URL=http://functions_api/api/
+#      - EXAMS_API=${EXAMS_API}
 
   notification_service:
     build: notification_service/

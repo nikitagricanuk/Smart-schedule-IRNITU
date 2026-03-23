@@ -196,7 +196,13 @@ def text(message):
 
 
 if __name__ == '__main__':
-    bot.remove_webhook()
+    for attempt in range(1, 6):
+        try:
+            bot.remove_webhook()
+            break
+        except Exception as exc:
+            logger.error(f'Failed to remove webhook (attempt {attempt}/5): {exc}')
+            time.sleep(3)
     logger.info('Бот запущен...')
     while True:
         try:
@@ -204,5 +210,4 @@ if __name__ == '__main__':
         except Exception as e:
             logger.error(e)
             time.sleep(3)
-
 
