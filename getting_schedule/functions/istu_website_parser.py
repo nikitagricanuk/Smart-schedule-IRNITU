@@ -583,15 +583,17 @@ class ISTUScheduleParser:
 
         main_html = self._fetch_html()
         subdivisions = parse_subdivisions_html(main_html)
-        if not subdivisions:
-            raise RuntimeError("No subdivisions found on ISTU schedule page")
-
-        institutes = [{"name": subdivision["institute"]} for subdivision in subdivisions]
-
         groups = []
-        for subdivision in subdivisions:
-            subdivision_html = self._fetch_html(params={"subdiv": subdivision["subdiv_id"]})
-            groups.extend(parse_groups_html(subdivision_html, subdivision["institute"]))
+        if subdivisions:
+            institutes = [{"name": subdivision["institute"]} for subdivision in subdivisions]
+            for subdivision in subdivisions:
+                subdivision_html = self._fetch_html(params={"subdiv": subdivision["subdiv_id"]})
+                groups.extend(parse_groups_html(subdivision_html, subdivision["institute"]))
+        else:
+            logger.warning("No subdivisions found on ISTU main page. Trying fallback parsing from main page.")
+            fallback_institute = "ИРНИТУ"
+            groups = parse_groups_html(main_html, fallback_institute)
+            institutes = [{"name": fallback_institute}] if groups else []
 
         if not groups:
             raise RuntimeError("No groups found while parsing ISTU subdivisions")
@@ -639,8 +641,10 @@ class ISTUScheduleParser:
         total_groups = len(groups)
         success_rate = success_count / total_groups if total_groups else 0
         if success_rate < self.min_success_rate:
-            raise RuntimeError(
-                f"Too many failed groups while parsing ISTU website: {success_count}/{total_groups} successful"
+            logger.warning(
+                "Low ISTU parse success rate: "
+                f"{success_count}/{total_groups} successful (threshold={self.min_success_rate}). "
+                "Saving available data anyway."
             )
 
         if failed_groups:

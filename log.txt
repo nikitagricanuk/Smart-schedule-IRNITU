@@ -1,0 +1,942 @@
+sudo docker-compose up
+Building tg_bot
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  2.515MB
+Step 1/9 : FROM python:3.8
+3.8: Pulling from library/python
+cdd62bf39133: Pull complete
+a47cff7f31e9: Pull complete
+a173f2aee8e9: Pull complete
+01272fe8adba: Pull complete
+cddc73e4e6c7: Pull complete
+cc48f13b5f0f: Pull complete
+5a98c896c047: Pull complete
+Digest: sha256:d411270700143fa2683cc8264d9fa5d3279fd3b6afff62ae81ea2f9d070e390c
+Status: Downloaded newer image for python:3.8
+ ---> 3ea6eaad4f17
+Step 2/9 : RUN mkdir -p /usr/src/tg_bot/
+ ---> Running in 6d066291b23b
+ ---> Removed intermediate container 6d066291b23b
+ ---> 4288f05cf442
+Step 3/9 : WORKDIR /usr/src/tg_bot/
+ ---> Running in c009c1745e9c
+ ---> Removed intermediate container c009c1745e9c
+ ---> 5e8521c478fa
+Step 4/9 : COPY . /usr/src/tg_bot/
+ ---> 52a4c614a928
+Step 5/9 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Running in 807cccdc308c
+Collecting certifi==2019.11.28
+  Downloading certifi-2019.11.28-py2.py3-none-any.whl (156 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 156.0/156.0 kB 1.3 MB/s eta 0:00:00
+Collecting chardet==3.0.4
+  Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.4/133.4 kB 3.8 MB/s eta 0:00:00
+Collecting click==7.1.1
+  Downloading click-7.1.1-py2.py3-none-any.whl (82 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 82.8/82.8 kB 5.0 MB/s eta 0:00:00
+Collecting idna==2.9
+  Downloading idna-2.9-py2.py3-none-any.whl (58 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 4.9 MB/s eta 0:00:00
+Collecting itsdangerous==1.1.0
+  Downloading itsdangerous-1.1.0-py2.py3-none-any.whl (16 kB)
+Collecting keyboa==2.2.7
+  Downloading keyboa-2.2.7-py3-none-any.whl (10 kB)
+Collecting MarkupSafe==1.1.1
+  Downloading MarkupSafe-1.1.1-cp38-cp38-manylinux2010_x86_64.whl (32 kB)
+Collecting pymongo==3.11.0
+  Downloading pymongo-3.11.0-cp38-cp38-manylinux2014_x86_64.whl (530 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.4/530.4 kB 3.8 MB/s eta 0:00:00
+Collecting pyTelegramBotAPI==3.6.7
+  Downloading pyTelegramBotAPI-3.6.7.tar.gz (65 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.7/65.7 kB 5.4 MB/s eta 0:00:00
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting pytz==2019.3
+  Downloading pytz-2019.3-py2.py3-none-any.whl (509 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 509.2/509.2 kB 3.5 MB/s eta 0:00:00
+Collecting requests==2.23.0
+  Downloading requests-2.23.0-py2.py3-none-any.whl (58 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 4.2 MB/s eta 0:00:00
+Collecting six==1.14.0
+  Downloading six-1.14.0-py2.py3-none-any.whl (10 kB)
+Collecting urllib3==1.25.8
+  Downloading urllib3-1.25.8-py2.py3-none-any.whl (125 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.6/125.6 kB 3.1 MB/s eta 0:00:00
+Collecting Werkzeug==1.0.0
+  Downloading Werkzeug-1.0.0-py2.py3-none-any.whl (298 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 298.6/298.6 kB 3.0 MB/s eta 0:00:00
+Building wheels for collected packages: pyTelegramBotAPI
+  Building wheel for pyTelegramBotAPI (setup.py): started
+  Building wheel for pyTelegramBotAPI (setup.py): finished with status 'done'
+  Created wheel for pyTelegramBotAPI: filename=pyTelegramBotAPI-3.6.7-py3-none-any.whl size=47177 sha256=71b84ac80b9df0731a5943054cab50df138bd890a31b80750e5a464557f73324
+  Stored in directory: /tmp/pip-ephem-wheel-cache-nkz468u6/wheels/06/86/1d/a5a0eec2da47544847c30c147d852ef18551d4f500df18fd20
+Successfully built pyTelegramBotAPI
+Installing collected packages: pytz, chardet, certifi, Werkzeug, urllib3, six, pymongo, MarkupSafe, itsdangerous, idna, click, requests, pyTelegramBotAPI, keyboa
+Successfully installed MarkupSafe-1.1.1 Werkzeug-1.0.0 certifi-2019.11.28 chardet-3.0.4 click-7.1.1 idna-2.9 itsdangerous-1.1.0 keyboa-2.2.7 pyTelegramBotAPI-3.6.7 pymongo-3.11.0 pytz-2019.3 requests-2.23.0 six-1.14.0 urllib3-1.25.8
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 23.0.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+ ---> Removed intermediate container 807cccdc308c
+ ---> 7bf5d7b03389
+Step 6/9 : RUN apt update &&     apt install -y locales &&     sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen &&     dpkg-reconfigure --frontend=noninteractive locales
+ ---> Running in e75d35b1c2d1
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8792 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [294 kB]
+Fetched 9347 kB in 1s (7666 kB/s)
+Reading package lists...
+Building dependency tree...
+Reading state information...
+161 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libc-bin libc-dev-bin libc-l10n libc6 libc6-dev
+Suggested packages:
+  glibc-doc libnss-nis libnss-nisplus manpages-dev
+Recommended packages:
+  manpages manpages-dev libc-devtools
+The following NEW packages will be installed:
+  libc-l10n locales
+The following packages will be upgraded:
+  libc-bin libc-dev-bin libc6 libc6-dev
+4 upgraded, 2 newly installed, 0 to remove and 157 not upgraded.
+Need to get 9896 kB of archives.
+After this operation, 20.7 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian bookworm/main amd64 libc6-dev amd64 2.36-9+deb12u13 [1904 kB]
+Get:2 http://deb.debian.org/debian bookworm/main amd64 libc-dev-bin amd64 2.36-9+deb12u13 [47.4 kB]
+Get:3 http://deb.debian.org/debian bookworm/main amd64 libc6 amd64 2.36-9+deb12u13 [2758 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 libc-bin amd64 2.36-9+deb12u13 [609 kB]
+Get:5 http://deb.debian.org/debian bookworm/main amd64 libc-l10n all 2.36-9+deb12u13 [677 kB]
+Get:6 http://deb.debian.org/debian bookworm/main amd64 locales all 2.36-9+deb12u13 [3901 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 9896 kB in 1s (8303 kB/s)
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc6-dev_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc-dev-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-dev-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc6_2.36-9+deb12u13_amd64.deb ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Unpacking libc6:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc6:amd64 (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc-bin (2.36-9+deb12u13) ...
+Selecting previously unselected package libc-l10n.
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-l10n_2.36-9+deb12u13_all.deb ...
+Unpacking libc-l10n (2.36-9+deb12u13) ...
+Selecting previously unselected package locales.
+Preparing to unpack .../locales_2.36-9+deb12u13_all.deb ...
+Unpacking locales (2.36-9+deb12u13) ...
+Setting up libc-l10n (2.36-9+deb12u13) ...
+Setting up locales (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Generating locales (this might take a while)...
+Generation complete.
+Setting up libc-dev-bin (2.36-9+deb12u13) ...
+Setting up libc6-dev:amd64 (2.36-9+deb12u13) ...
+Generating locales (this might take a while)...
+  ru_RU.UTF-8... done
+Generation complete.
+ ---> Removed intermediate container e75d35b1c2d1
+ ---> 652e215d1441
+Step 7/9 : ENV LANG ru_RU.UTF-8
+ ---> Running in ebda32e0fe4d
+ ---> Removed intermediate container ebda32e0fe4d
+ ---> 66e2457fd029
+Step 8/9 : ENV LC_ALL ru_RU.UTF-8
+ ---> Running in 9dceb8b1c8b1
+ ---> Removed intermediate container 9dceb8b1c8b1
+ ---> e69bd5fa4680
+Step 9/9 : CMD ["python3", "tg_bot.py"]
+ ---> Running in b439dbb28c30
+ ---> Removed intermediate container b439dbb28c30
+ ---> 6e6db9cd68c6
+Successfully built 6e6db9cd68c6
+Successfully tagged smart-schedule-irnitu_tg_bot:latest
+WARNING: Image for service tg_bot was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Building notification_service
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  37.38kB
+Step 1/9 : FROM python:3.8
+ ---> 3ea6eaad4f17
+Step 2/9 : RUN mkdir -p /usr/src/notification_service/
+ ---> Running in 91289a11e18c
+ ---> Removed intermediate container 91289a11e18c
+ ---> de9057aa785c
+Step 3/9 : WORKDIR /usr/src/notification_service/
+ ---> Running in 90066736d7f2
+ ---> Removed intermediate container 90066736d7f2
+ ---> 372b161e2948
+Step 4/9 : COPY . /usr/src/notification_service/
+ ---> a0a3cdf17a55
+Step 5/9 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Running in ba665e582c94
+Collecting aiohttp==3.7.4
+  Downloading aiohttp-3.7.4-cp38-cp38-manylinux2014_x86_64.whl (1.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.5/1.5 MB 1.7 MB/s eta 0:00:00
+Collecting appdirs==1.4.4
+  Downloading appdirs-1.4.4-py2.py3-none-any.whl (9.6 kB)
+Collecting async-timeout==3.0.1
+  Downloading async_timeout-3.0.1-py3-none-any.whl (8.2 kB)
+Collecting attrs==20.2.0
+  Downloading attrs-20.2.0-py2.py3-none-any.whl (48 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.1/48.1 kB 1.5 MB/s eta 0:00:00
+Collecting CacheControl==0.12.6
+  Downloading CacheControl-0.12.6-py2.py3-none-any.whl (19 kB)
+Collecting cachy==0.3.0
+  Downloading cachy-0.3.0-py2.py3-none-any.whl (20 kB)
+Collecting certifi==2020.6.20
+  Downloading certifi-2020.6.20-py2.py3-none-any.whl (156 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 156.6/156.6 kB 1.4 MB/s eta 0:00:00
+Collecting chardet==3.0.4
+  Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.4/133.4 kB 1.5 MB/s eta 0:00:00
+Collecting choicelib==0.1.4
+  Downloading choicelib-0.1.4-py3-none-any.whl (2.8 kB)
+Collecting cleo==0.8.1
+  Downloading cleo-0.8.1-py2.py3-none-any.whl (21 kB)
+Collecting clikit==0.6.2
+  Downloading clikit-0.6.2-py2.py3-none-any.whl (91 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.8/91.8 kB 1.7 MB/s eta 0:00:00
+Collecting colorama==0.4.4
+  Downloading colorama-0.4.4-py2.py3-none-any.whl (16 kB)
+Collecting contextvars==2.4
+  Downloading contextvars-2.4.tar.gz (9.6 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting crashtest==0.3.1
+  Downloading crashtest-0.3.1-py3-none-any.whl (7.0 kB)
+Collecting distlib==0.3.1
+  Downloading distlib-0.3.1-py2.py3-none-any.whl (335 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 335.9/335.9 kB 1.4 MB/s eta 0:00:00
+Collecting filelock==3.0.12
+  Downloading filelock-3.0.12-py3-none-any.whl (7.6 kB)
+Collecting html5lib==1.1
+  Downloading html5lib-1.1-py2.py3-none-any.whl (112 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 112.2/112.2 kB 1.3 MB/s eta 0:00:00
+Collecting idna==2.10
+  Downloading idna-2.10-py2.py3-none-any.whl (58 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.8/58.8 kB 1.4 MB/s eta 0:00:00
+Collecting immutables==0.14
+  Downloading immutables-0.14-cp38-cp38-manylinux1_x86_64.whl (102 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.6/102.6 kB 1.2 MB/s eta 0:00:00
+Collecting keyring==21.8.0
+  Downloading keyring-21.8.0-py3-none-any.whl (32 kB)
+Collecting lockfile==0.12.2
+  Downloading lockfile-0.12.2-py2.py3-none-any.whl (13 kB)
+Collecting loguru==0.5.3
+  Downloading loguru-0.5.3-py3-none-any.whl (57 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.2/57.2 kB 913.0 kB/s eta 0:00:00
+Collecting msgpack==1.0.2
+  Downloading msgpack-1.0.2-cp38-cp38-manylinux1_x86_64.whl (302 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 302.8/302.8 kB 982.2 kB/s eta 0:00:00
+Collecting multidict==4.7.6
+  Downloading multidict-4.7.6-cp38-cp38-manylinux1_x86_64.whl (162 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 162.9/162.9 kB 1.0 MB/s eta 0:00:00
+Collecting packaging==20.9
+  Downloading packaging-20.9-py2.py3-none-any.whl (40 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 895.8 kB/s eta 0:00:00
+Collecting pastel==0.2.1
+  Downloading pastel-0.2.1-py2.py3-none-any.whl (6.0 kB)
+Collecting pexpect==4.8.0
+  Downloading pexpect-4.8.0-py2.py3-none-any.whl (59 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.0/59.0 kB 951.0 kB/s eta 0:00:00
+Collecting pkginfo==1.7.0
+  Downloading pkginfo-1.7.0-py2.py3-none-any.whl (25 kB)
+Collecting poetry==1.1.4
+  Downloading poetry-1.1.4-py2.py3-none-any.whl (171 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 171.6/171.6 kB 776.2 kB/s eta 0:00:00
+Collecting poetry-core==1.0.0
+  Downloading poetry_core-1.0.0-py2.py3-none-any.whl (409 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 409.1/409.1 kB 609.5 kB/s eta 0:00:00
+Collecting ptyprocess==0.7.0
+  Downloading ptyprocess-0.7.0-py2.py3-none-any.whl (13 kB)
+Collecting pydantic==1.6.2
+  Downloading pydantic-1.6.2-cp38-cp38-manylinux2014_x86_64.whl (11.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.5/11.5 MB 1.2 MB/s eta 0:00:00
+Collecting pylev==1.3.0
+  Downloading pylev-1.3.0-py2.py3-none-any.whl (4.9 kB)
+Collecting pymongo==3.11.0
+  Downloading pymongo-3.11.0-cp38-cp38-manylinux2014_x86_64.whl (530 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.4/530.4 kB 2.0 MB/s eta 0:00:00
+Collecting pyparsing==2.4.7
+  Downloading pyparsing-2.4.7-py2.py3-none-any.whl (67 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.8/67.8 kB 2.2 MB/s eta 0:00:00
+Collecting pyTelegramBotAPI==3.7.3
+  Downloading pyTelegramBotAPI-3.7.3.tar.gz (76 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.4/76.4 kB 2.4 MB/s eta 0:00:00
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting pytz==2020.1
+  Downloading pytz-2020.1-py2.py3-none-any.whl (510 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.2/510.2 kB 2.2 MB/s eta 0:00:00
+Collecting pywin32-ctypes==0.2.0
+  Downloading pywin32_ctypes-0.2.0-py2.py3-none-any.whl (28 kB)
+Collecting requests==2.24.0
+  Downloading requests-2.24.0-py2.py3-none-any.whl (61 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.8/61.8 kB 2.8 MB/s eta 0:00:00
+Collecting requests-toolbelt==0.9.1
+  Downloading requests_toolbelt-0.9.1-py2.py3-none-any.whl (54 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.3/54.3 kB 3.0 MB/s eta 0:00:00
+Collecting python-dotenv==0.21.1
+  Downloading python_dotenv-0.21.1-py3-none-any.whl (19 kB)
+Collecting shellingham==1.4.0
+  Downloading shellingham-1.4.0-py2.py3-none-any.whl (9.4 kB)
+Collecting six==1.15.0
+  Downloading six-1.15.0-py2.py3-none-any.whl (10 kB)
+Collecting tomlkit==0.7.0
+  Downloading tomlkit-0.7.0-py2.py3-none-any.whl (32 kB)
+Collecting urllib3==1.25.10
+  Downloading urllib3-1.25.10-py2.py3-none-any.whl (127 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 127.6/127.6 kB 2.6 MB/s eta 0:00:00
+Collecting vbml==0.5.93
+  Downloading vbml-0.5.93-py3-none-any.whl (22 kB)
+Collecting virtualenv==20.4.2
+  Downloading virtualenv-20.4.2-py2.py3-none-any.whl (7.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.2/7.2 MB 2.4 MB/s eta 0:00:00
+Collecting vk-api==11.9.1
+  Downloading vk_api-11.9.1.tar.gz (35 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting watchgod==0.6
+  Downloading watchgod-0.6-py35.py36.py37-none-any.whl (10 kB)
+Collecting webencodings==0.5.1
+  Downloading webencodings-0.5.1-py2.py3-none-any.whl (11 kB)
+Collecting win32-setctime==1.0.3
+  Downloading win32_setctime-1.0.3-py3-none-any.whl (3.5 kB)
+Collecting yarl==1.6.0
+  Downloading yarl-1.6.0-cp38-cp38-manylinux1_x86_64.whl (262 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 262.5/262.5 kB 2.6 MB/s eta 0:00:00
+Collecting typing-extensions>=3.6.5
+  Downloading typing_extensions-4.13.2-py3-none-any.whl (45 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.8/45.8 kB 3.8 MB/s eta 0:00:00
+Collecting jeepney>=0.4.2
+  Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 3.7 MB/s eta 0:00:00
+Collecting SecretStorage>=3.2
+  Downloading SecretStorage-3.3.3-py3-none-any.whl (15 kB)
+Collecting cachecontrol[filecache]<0.13.0,>=0.12.4
+  Downloading CacheControl-0.12.14-py2.py3-none-any.whl (21 kB)
+  Downloading CacheControl-0.12.13-py2.py3-none-any.whl (21 kB)
+  Downloading CacheControl-0.12.11-py2.py3-none-any.whl (21 kB)
+  Downloading CacheControl-0.12.10-py2.py3-none-any.whl (20 kB)
+  Downloading CacheControl-0.12.9-py2.py3-none-any.whl (23 kB)
+  Downloading CacheControl-0.12.8-py2.py3-none-any.whl (23 kB)
+  Downloading CacheControl-0.12.7-py2.py3-none-any.whl (23 kB)
+Collecting cryptography>=2.0
+  Downloading cryptography-46.0.5-cp38-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 2.3 MB/s eta 0:00:00
+Collecting cffi>=1.14
+  Downloading cffi-1.17.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (446 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 446.5/446.5 kB 2.1 MB/s eta 0:00:00
+Collecting pycparser
+  Downloading pycparser-2.23-py3-none-any.whl (118 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 118.1/118.1 kB 2.4 MB/s eta 0:00:00
+Building wheels for collected packages: contextvars, pyTelegramBotAPI, vk-api
+  Building wheel for contextvars (setup.py): started
+  Building wheel for contextvars (setup.py): finished with status 'done'
+  Created wheel for contextvars: filename=contextvars-2.4-py3-none-any.whl size=7676 sha256=df927d2901e2b3c6d9125b99f847fd075caad8a52647c20eac0c6e7f209f23d6
+  Stored in directory: /tmp/pip-ephem-wheel-cache-4v2o7eo8/wheels/b7/34/d6/604b7f4529e12cb393cb90710ebe797654cb77737f7bbc2fd4
+  Building wheel for pyTelegramBotAPI (setup.py): started
+  Building wheel for pyTelegramBotAPI (setup.py): finished with status 'done'
+  Created wheel for pyTelegramBotAPI: filename=pyTelegramBotAPI-3.7.3-py3-none-any.whl size=55585 sha256=752cda561811d3208600c366b66c8d02ee5ffc5071b38d31b88941ad6b315dbd
+  Stored in directory: /tmp/pip-ephem-wheel-cache-4v2o7eo8/wheels/fb/ea/ba/63be803159ff4278a0f46cdef375a15ded718c959d91e3e4c3
+  Building wheel for vk-api (setup.py): started
+  Building wheel for vk-api (setup.py): finished with status 'done'
+  Created wheel for vk-api: filename=vk_api-11.9.1-py3-none-any.whl size=44095 sha256=82b368c111c733f3829210feab0eb6126beeb04d50d107b03e409e1164f98864
+  Stored in directory: /tmp/pip-ephem-wheel-cache-4v2o7eo8/wheels/81/d5/0f/380d7e0b5d395df1bb53071627d256058a4a9ba23987f873ef
+Successfully built contextvars pyTelegramBotAPI vk-api
+Installing collected packages: webencodings, pywin32-ctypes, pytz, pylev, ptyprocess, pkginfo, msgpack, lockfile, filelock, distlib, chardet, certifi, appdirs, win32-setctime, watchgod, vbml, urllib3, typing-extensions, tomlkit, six, shellingham, python-dotenv, pyparsing, pymongo, pydantic, pycparser, poetry-core, pexpect, pastel, multidict, loguru, jeepney, immutables, idna, crashtest, colorama, choicelib, cachy, attrs, async-timeout, yarl, virtualenv, requests, packaging, html5lib, contextvars, clikit, cffi, vk-api, requests-toolbelt, pyTelegramBotAPI, cryptography, cleo, CacheControl, aiohttp, SecretStorage, keyring, poetry
+Successfully installed CacheControl-0.12.6 SecretStorage-3.3.3 aiohttp-3.7.4 appdirs-1.4.4 async-timeout-3.0.1 attrs-20.2.0 cachy-0.3.0 certifi-2020.6.20 cffi-1.17.1 chardet-3.0.4 choicelib-0.1.4 cleo-0.8.1 clikit-0.6.2 colorama-0.4.4 contextvars-2.4 crashtest-0.3.1 cryptography-46.0.5 distlib-0.3.1 filelock-3.0.12 html5lib-1.1 idna-2.10 immutables-0.14 jeepney-0.9.0 keyring-21.8.0 lockfile-0.12.2 loguru-0.5.3 msgpack-1.0.2 multidict-4.7.6 packaging-20.9 pastel-0.2.1 pexpect-4.8.0 pkginfo-1.7.0 poetry-1.1.4 poetry-core-1.0.0 ptyprocess-0.7.0 pyTelegramBotAPI-3.7.3 pycparser-2.23 pydantic-1.6.2 pylev-1.3.0 pymongo-3.11.0 pyparsing-2.4.7 python-dotenv-0.21.1 pytz-2020.1 pywin32-ctypes-0.2.0 requests-2.24.0 requests-toolbelt-0.9.1 shellingham-1.4.0 six-1.15.0 tomlkit-0.7.0 typing-extensions-4.13.2 urllib3-1.25.10 vbml-0.5.93 virtualenv-20.4.2 vk-api-11.9.1 watchgod-0.6 webencodings-0.5.1 win32-setctime-1.0.3 yarl-1.6.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 23.0.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+ ---> Removed intermediate container ba665e582c94
+ ---> 2c98fdbe282c
+Step 6/9 : RUN apt update &&     apt install -y locales &&     sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen &&     dpkg-reconfigure --frontend=noninteractive locales
+ ---> Running in 65c8c6898ca2
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8792 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [294 kB]
+Fetched 9347 kB in 10s (953 kB/s)
+Reading package lists...
+Building dependency tree...
+Reading state information...
+161 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libc-bin libc-dev-bin libc-l10n libc6 libc6-dev
+Suggested packages:
+  glibc-doc libnss-nis libnss-nisplus manpages-dev
+Recommended packages:
+  manpages manpages-dev libc-devtools
+The following NEW packages will be installed:
+  libc-l10n locales
+The following packages will be upgraded:
+  libc-bin libc-dev-bin libc6 libc6-dev
+4 upgraded, 2 newly installed, 0 to remove and 157 not upgraded.
+Need to get 9896 kB of archives.
+After this operation, 20.7 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian bookworm/main amd64 libc6-dev amd64 2.36-9+deb12u13 [1904 kB]
+Get:2 http://deb.debian.org/debian bookworm/main amd64 libc-dev-bin amd64 2.36-9+deb12u13 [47.4 kB]
+Get:3 http://deb.debian.org/debian bookworm/main amd64 libc6 amd64 2.36-9+deb12u13 [2758 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 libc-bin amd64 2.36-9+deb12u13 [609 kB]
+Get:5 http://deb.debian.org/debian bookworm/main amd64 libc-l10n all 2.36-9+deb12u13 [677 kB]
+Get:6 http://deb.debian.org/debian bookworm/main amd64 locales all 2.36-9+deb12u13 [3901 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 9896 kB in 7s (1460 kB/s)
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc6-dev_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc-dev-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-dev-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc6_2.36-9+deb12u13_amd64.deb ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Unpacking libc6:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc6:amd64 (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc-bin (2.36-9+deb12u13) ...
+Selecting previously unselected package libc-l10n.
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-l10n_2.36-9+deb12u13_all.deb ...
+Unpacking libc-l10n (2.36-9+deb12u13) ...
+Selecting previously unselected package locales.
+Preparing to unpack .../locales_2.36-9+deb12u13_all.deb ...
+Unpacking locales (2.36-9+deb12u13) ...
+Setting up libc-l10n (2.36-9+deb12u13) ...
+Setting up locales (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Generating locales (this might take a while)...
+Generation complete.
+Setting up libc-dev-bin (2.36-9+deb12u13) ...
+Setting up libc6-dev:amd64 (2.36-9+deb12u13) ...
+Generating locales (this might take a while)...
+  ru_RU.UTF-8... done
+Generation complete.
+ ---> Removed intermediate container 65c8c6898ca2
+ ---> 66814a05b394
+Step 7/9 : ENV LANG ru_RU.UTF-8
+ ---> Running in 1c16c13651dd
+ ---> Removed intermediate container 1c16c13651dd
+ ---> 48caf43ec7e2
+Step 8/9 : ENV LC_ALL ru_RU.UTF-8
+ ---> Running in b5724a801c89
+ ---> Removed intermediate container b5724a801c89
+ ---> 4b9897089a32
+Step 9/9 : CMD ["python3", "start_reminders.py"]
+ ---> Running in c48b88af99b5
+ ---> Removed intermediate container c48b88af99b5
+ ---> 1ff4bc99137b
+Successfully built 1ff4bc99137b
+Successfully tagged smart-schedule-irnitu_notification_service:latest
+WARNING: Image for service notification_service was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Building getting_schedule
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  146.9kB
+Step 1/6 : FROM python:3.8
+ ---> 3ea6eaad4f17
+Step 2/6 : RUN mkdir -p /usr/src/getting_schedule/
+ ---> Running in 5e34e9d68ce2
+ ---> Removed intermediate container 5e34e9d68ce2
+ ---> bf9d5fda06ef
+Step 3/6 : WORKDIR /usr/src/getting_schedule/
+ ---> Running in d2d7168e4b68
+ ---> Removed intermediate container d2d7168e4b68
+ ---> 14165e1526dc
+Step 4/6 : COPY . /usr/src/getting_schedule/
+ ---> 5cbe8041b211
+Step 5/6 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Running in 9bde15218d48
+Collecting psycopg2==2.8.6
+  Downloading psycopg2-2.8.6.tar.gz (383 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 383.8/383.8 kB 3.2 MB/s eta 0:00:00
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting pymongo==3.11.2
+  Downloading pymongo-3.11.2-cp38-cp38-manylinux2014_x86_64.whl (531 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 531.6/531.6 kB 6.3 MB/s eta 0:00:00
+Collecting pytz==2020.5
+  Downloading pytz-2020.5-py2.py3-none-any.whl (510 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.8/510.8 kB 6.2 MB/s eta 0:00:00
+Collecting requests==2.25
+  Downloading requests-2.25.0-py2.py3-none-any.whl (61 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.1/61.1 kB 8.9 MB/s eta 0:00:00
+Collecting pendulum==2.1.2
+  Downloading pendulum-2.1.2-cp38-cp38-manylinux1_x86_64.whl (155 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.7/155.7 kB 8.0 MB/s eta 0:00:00
+Collecting beautifulsoup4==4.12.3
+  Downloading beautifulsoup4-4.12.3-py3-none-any.whl (147 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 147.9/147.9 kB 3.8 MB/s eta 0:00:00
+Collecting chardet<4,>=3.0.2
+  Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.4/133.4 kB 2.4 MB/s eta 0:00:00
+Collecting idna<3,>=2.5
+  Downloading idna-2.10-py2.py3-none-any.whl (58 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.8/58.8 kB 4.2 MB/s eta 0:00:00
+Collecting urllib3<1.27,>=1.21.1
+  Downloading urllib3-1.26.20-py2.py3-none-any.whl (144 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 144.2/144.2 kB 3.1 MB/s eta 0:00:00
+Collecting certifi>=2017.4.17
+  Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 153.7/153.7 kB 3.3 MB/s eta 0:00:00
+Collecting pytzdata>=2020.1
+  Downloading pytzdata-2020.1-py2.py3-none-any.whl (489 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 490.0/490.0 kB 3.2 MB/s eta 0:00:00
+Collecting python-dateutil<3.0,>=2.6
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 2.9 MB/s eta 0:00:00
+Collecting soupsieve>1.2
+  Downloading soupsieve-2.7-py3-none-any.whl (36 kB)
+Collecting six>=1.5
+  Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Building wheels for collected packages: psycopg2
+  Building wheel for psycopg2 (setup.py): started
+  Building wheel for psycopg2 (setup.py): finished with status 'done'
+  Created wheel for psycopg2: filename=psycopg2-2.8.6-cp38-cp38-linux_x86_64.whl size=459857 sha256=e410d6c49777bf728854d5edc6559da283589698a4394c1c9ee5f8a3f4a8f4b9
+  Stored in directory: /tmp/pip-ephem-wheel-cache-d0jig48u/wheels/70/5e/69/8a020d78c09043156a7df0b64529e460fbd922ca065c4b795c
+Successfully built psycopg2
+Installing collected packages: pytz, chardet, urllib3, soupsieve, six, pytzdata, pymongo, psycopg2, idna, certifi, requests, python-dateutil, beautifulsoup4, pendulum
+Successfully installed beautifulsoup4-4.12.3 certifi-2026.2.25 chardet-3.0.4 idna-2.10 pendulum-2.1.2 psycopg2-2.8.6 pymongo-3.11.2 python-dateutil-2.9.0.post0 pytz-2020.5 pytzdata-2020.1 requests-2.25.0 six-1.17.0 soupsieve-2.7 urllib3-1.26.20
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 23.0.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+ ---> Removed intermediate container 9bde15218d48
+ ---> dd056816a030
+Step 6/6 : CMD ["python3", "main.py"]
+ ---> Running in 32ac71f4328e
+ ---> Removed intermediate container 32ac71f4328e
+ ---> c5b7090f2342
+Successfully built c5b7090f2342
+Successfully tagged smart-schedule-irnitu_getting_schedule:latest
+WARNING: Image for service getting_schedule was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Building functions_api
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  35.84kB
+Step 1/11 : FROM python:3.8
+ ---> 3ea6eaad4f17
+Step 2/11 : RUN mkdir -p /usr/src/functions_api/
+ ---> Running in d3357a91651e
+ ---> Removed intermediate container d3357a91651e
+ ---> cd4aeade7e82
+Step 3/11 : WORKDIR /usr/src/functions_api/
+ ---> Running in 795b65245382
+ ---> Removed intermediate container 795b65245382
+ ---> 1a6f89df1c4c
+Step 4/11 : COPY . /usr/src/functions_api/
+ ---> b866cffae711
+Step 5/11 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Running in 43a989a2c002
+Collecting click==7.1.2
+  Downloading click-7.1.2-py2.py3-none-any.whl (82 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 82.8/82.8 kB 1.1 MB/s eta 0:00:00
+Collecting Flask==1.1.2
+  Downloading Flask-1.1.2-py2.py3-none-any.whl (94 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 94.6/94.6 kB 2.0 MB/s eta 0:00:00
+Collecting gunicorn==20.0.4
+  Downloading gunicorn-20.0.4-py2.py3-none-any.whl (77 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 77.9/77.9 kB 1.8 MB/s eta 0:00:00
+Collecting itsdangerous==1.1.0
+  Downloading itsdangerous-1.1.0-py2.py3-none-any.whl (16 kB)
+Collecting Jinja2==2.11.3
+  Downloading Jinja2-2.11.3-py2.py3-none-any.whl (125 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.7/125.7 kB 2.1 MB/s eta 0:00:00
+Collecting MarkupSafe==1.1.1
+  Downloading MarkupSafe-1.1.1-cp38-cp38-manylinux2010_x86_64.whl (32 kB)
+Collecting pytz==2021.1
+  Downloading pytz-2021.1-py2.py3-none-any.whl (510 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.8/510.8 kB 2.0 MB/s eta 0:00:00
+Collecting Werkzeug==1.0.1
+  Downloading Werkzeug-1.0.1-py2.py3-none-any.whl (298 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 298.6/298.6 kB 2.1 MB/s eta 0:00:00
+Requirement already satisfied: setuptools>=3.0 in /usr/local/lib/python3.8/site-packages (from gunicorn==20.0.4->-r requirements.txt (line 3)) (57.5.0)
+Installing collected packages: pytz, Werkzeug, MarkupSafe, itsdangerous, gunicorn, click, Jinja2, Flask
+Successfully installed Flask-1.1.2 Jinja2-2.11.3 MarkupSafe-1.1.1 Werkzeug-1.0.1 click-7.1.2 gunicorn-20.0.4 itsdangerous-1.1.0 pytz-2021.1
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 23.0.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+ ---> Removed intermediate container 43a989a2c002
+ ---> 3291601109a1
+Step 6/11 : RUN apt update &&     apt install -y locales &&     sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen &&     dpkg-reconfigure --frontend=noninteractive locales
+ ---> Running in 1a72d669a314
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8792 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [294 kB]
+Fetched 9347 kB in 3s (3431 kB/s)
+Reading package lists...
+Building dependency tree...
+Reading state information...
+161 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libc-bin libc-dev-bin libc-l10n libc6 libc6-dev
+Suggested packages:
+  glibc-doc libnss-nis libnss-nisplus manpages-dev
+Recommended packages:
+  manpages manpages-dev libc-devtools
+The following NEW packages will be installed:
+  libc-l10n locales
+The following packages will be upgraded:
+  libc-bin libc-dev-bin libc6 libc6-dev
+4 upgraded, 2 newly installed, 0 to remove and 157 not upgraded.
+Need to get 9896 kB of archives.
+After this operation, 20.7 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian bookworm/main amd64 libc6-dev amd64 2.36-9+deb12u13 [1904 kB]
+Get:2 http://deb.debian.org/debian bookworm/main amd64 libc-dev-bin amd64 2.36-9+deb12u13 [47.4 kB]
+Get:3 http://deb.debian.org/debian bookworm/main amd64 libc6 amd64 2.36-9+deb12u13 [2758 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 libc-bin amd64 2.36-9+deb12u13 [609 kB]
+Get:5 http://deb.debian.org/debian bookworm/main amd64 libc-l10n all 2.36-9+deb12u13 [677 kB]
+Get:6 http://deb.debian.org/debian bookworm/main amd64 locales all 2.36-9+deb12u13 [3901 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 9896 kB in 8s (1274 kB/s)
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc6-dev_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc-dev-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-dev-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Preparing to unpack .../libc6_2.36-9+deb12u13_amd64.deb ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Unpacking libc6:amd64 (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc6:amd64 (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-bin_2.36-9+deb12u13_amd64.deb ...
+Unpacking libc-bin (2.36-9+deb12u13) over (2.36-9+deb12u8) ...
+Setting up libc-bin (2.36-9+deb12u13) ...
+Selecting previously unselected package libc-l10n.
+(Reading database ... 23969 files and directories currently installed.)
+Preparing to unpack .../libc-l10n_2.36-9+deb12u13_all.deb ...
+Unpacking libc-l10n (2.36-9+deb12u13) ...
+Selecting previously unselected package locales.
+Preparing to unpack .../locales_2.36-9+deb12u13_all.deb ...
+Unpacking locales (2.36-9+deb12u13) ...
+Setting up libc-l10n (2.36-9+deb12u13) ...
+Setting up locales (2.36-9+deb12u13) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+Generating locales (this might take a while)...
+Generation complete.
+Setting up libc-dev-bin (2.36-9+deb12u13) ...
+Setting up libc6-dev:amd64 (2.36-9+deb12u13) ...
+Generating locales (this might take a while)...
+  ru_RU.UTF-8... done
+Generation complete.
+ ---> Removed intermediate container 1a72d669a314
+ ---> 28432c97dc8f
+Step 7/11 : ENV LANG ru_RU.UTF-8
+ ---> Running in 611f4298aee1
+ ---> Removed intermediate container 611f4298aee1
+ ---> d84ebc23c371
+Step 8/11 : ENV LC_ALL ru_RU.UTF-8
+ ---> Running in 45a4a3e7fce2
+ ---> Removed intermediate container 45a4a3e7fce2
+ ---> 84a9b4337b85
+Step 9/11 : EXPOSE 8080
+ ---> Running in 0032a7a707c5
+ ---> Removed intermediate container 0032a7a707c5
+ ---> 0016a25e91dc
+Step 10/11 : RUN chmod a+x ./run.sh
+ ---> Running in 181d783e61dc
+ ---> Removed intermediate container 181d783e61dc
+ ---> 52e6cfc9e0b8
+Step 11/11 : CMD ["./run.sh"]
+ ---> Running in ebb424fa50f8
+ ---> Removed intermediate container ebb424fa50f8
+ ---> 5c0327fda96c
+Successfully built 5c0327fda96c
+Successfully tagged smart-schedule-irnitu_functions_api:latest
+WARNING: Image for service functions_api was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Pulling mongodb (mongo:latest)...
+latest: Pulling from library/mongo
+817807f3c64e: Pull complete
+2605962b0286: Pull complete
+0c85015575ad: Pull complete
+1e41d5f93e35: Pull complete
+3a5c9bc3c6a6: Pull complete
+e8567d1c4785: Pull complete
+8d1d6859a473: Pull complete
+01a854eada6f: Pull complete
+Digest: sha256:d343c378b5c6e2fe373174abcf4a877be0dfc721b5d0b9d582204dccb1c00b86
+Status: Downloaded newer image for mongo:latest
+Creating smart-schedule-irnitu_getting_schedule_1     ... done
+Creating smart-schedule-irnitu_functions_api_1        ... done
+Creating smart-schedule-irnitu_mongodb_1              ... done
+Creating smart-schedule-irnitu_notification_service_1 ... done
+Creating smart-schedule-irnitu_tg_bot_1               ... done
+Attaching to smart-schedule-irnitu_functions_api_1, smart-schedule-irnitu_mongodb_1, smart-schedule-irnitu_notification_service_1, smart-schedule-irnitu_getting_schedule_1, smart-schedule-irnitu_tg_bot_1
+functions_api_1         | [2026-03-23 15:01:25 +0000] [1] [INFO] Starting gunicorn 20.0.4
+functions_api_1         | [2026-03-23 15:01:25 +0000] [1] [INFO] Listening at: http://0.0.0.0:80 (1)
+functions_api_1         | [2026-03-23 15:01:25 +0000] [1] [INFO] Using worker: sync
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.124+00:00"},"s":"I",  "c":"-",        "id":8991200, "ctx":"main","msg":"Shuffling initializers","attr":{"seed":2822988934}}
+functions_api_1         | [2026-03-23 15:01:25 +0000] [8] [INFO] Booting worker with pid: 8
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.161+00:00"},"s":"I",  "c":"CONTROL",  "id":97374,   "ctx":"main","msg":"Automatically disabling TLS 1.0 and TLS 1.1, to force-enable TLS 1.1 specify --sslDisabledProtocols 'TLS1_0'; to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'"}
+functions_api_1         | [2026-03-23 15:01:25 +0000] [9] [INFO] Booting worker with pid: 9
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.190+00:00"},"s":"I",  "c":"NETWORK",  "id":4915701, "ctx":"main","msg":"Initialized wire specification","attr":{"spec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":27},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":27},"outgoing":{"minWireVersion":6,"maxWireVersion":27},"isInternalClient":true}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.194+00:00"},"s":"I",  "c":"CONTROL",  "id":5945603, "ctx":"main","msg":"Multi threading initialized"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.196+00:00"},"s":"I",  "c":"CONTROL",  "id":4615611, "ctx":"initandlisten","msg":"MongoDB starting","attr":{"pid":1,"port":27017,"dbPath":"/data/db","architecture":"64-bit","host":"57e602dad950"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.196+00:00"},"s":"I",  "c":"CONTROL",  "id":23403,   "ctx":"initandlisten","msg":"Build Info","attr":{"buildInfo":{"version":"8.2.6","gitVersion":"5d25c835745d06f712320b6cdae9d50b7b43663e","openSSLVersion":"OpenSSL 3.0.13 30 Jan 2024","modules":[],"allocator":"tcmalloc-google","environment":{"distmod":"ubuntu2404","distarch":"x86_64","target_arch":"x86_64"}}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.196+00:00"},"s":"I",  "c":"CONTROL",  "id":51765,   "ctx":"initandlisten","msg":"Operating System","attr":{"os":{"name":"Ubuntu","version":"24.04"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.196+00:00"},"s":"I",  "c":"CONTROL",  "id":21951,   "ctx":"initandlisten","msg":"Options set by command line","attr":{"options":{"net":{"bindIp":"*"}}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.200+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"initandlisten","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":25192}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.209+00:00"},"s":"I",  "c":"NETWORK",  "id":4648601, "ctx":"initandlisten","msg":"Implicit TCP FastOpen unavailable. If TCP FastOpen is required, set at least one of the related parameters","attr":{"relatedParameters":["tcpFastOpenServer","tcpFastOpenClient","tcpFastOpenQueueSize"]}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.215+00:00"},"s":"I",  "c":"STORAGE",  "id":22297,   "ctx":"initandlisten","msg":"Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem","tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.215+00:00"},"s":"I",  "c":"STORAGE",  "id":22315,   "ctx":"initandlisten","msg":"Opening WiredTiger","attr":{"config":"create,cache_size=472M,session_max=33000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,remove=true,path=journal,compressor=snappy),builtin_extension_config=(zstd=(compression_level=6)),file_manager=(close_idle_time=600,close_scan_interval=10,close_handle_minimum=2000),statistics_log=(wait=0),json_output=(error,message),verbose=[recovery_progress:1,checkpoint_progress:1,compact_progress:1,live_restore_progress:1,backup:0,checkpoint:0,compact:0,eviction:0,fileops:0,history_store:0,live_restore:0,recovery:0,rts:0,salvage:0,tiered:0,timestamp:0,transaction:0,verify:0,log:0],prefetch=(available=true,default=false),"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.236+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":236355,"thread":"1:0x7b6adb30c400","session_name":"wiredtiger_open","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"opening the WiredTiger library"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.411+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":411313,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"connection configuration string parsing completed"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.421+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":421860,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting WiredTiger utility threads"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.428+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":428329,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting WiredTiger recovery"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432563,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"scanning metadata to find the largest file ID"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432686,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"largest file ID found in the metadata 0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432704,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery log replay has successfully finished and ran for 4 milliseconds"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432728,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1000000,"category_id":33,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global recovery timestamp: (0, 0)"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432749,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1000000,"category_id":33,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global oldest timestamp: (0, 0)"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432779,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1493201,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery was completed successfully and took 4ms, including 4ms for the log replay, 0ms for the rollback to stable, and 0ms for the checkpoint."}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.432+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":432792,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1493201,"category_id":33,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery was completed successfully and took 4ms, including 4ms for the log replay, 0ms for the rollback to stable, and 0ms for the checkpoint."}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.445+00:00"},"s":"I",  "c":"WTEVICT",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":445790,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_EVICTION","log_id":1000000,"category_id":15,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting eviction threads"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.467+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":467153,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"WiredTiger utility threads started successfully"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.468+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":468876,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"the WiredTiger library has successfully opened"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.469+00:00"},"s":"I",  "c":"STORAGE",  "id":4795906, "ctx":"initandlisten","msg":"WiredTiger opened","attr":{"durationMillis":254}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.469+00:00"},"s":"I",  "c":"RECOVERY", "id":23987,   "ctx":"initandlisten","msg":"WiredTiger recoveryTimestamp","attr":{"recoveryTimestamp":{"$timestamp":{"t":0,"i":0}}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.469+00:00"},"s":"I",  "c":"STORAGE",  "id":9086700, "ctx":"initandlisten","msg":"WiredTiger session cache max value has been set","attr":{"sessionCacheMax":16500}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.481+00:00"},"s":"I",  "c":"STORAGE",  "id":10158000,"ctx":"initandlisten","msg":"Opening spill WiredTiger","attr":{"config":"create,cache_size=100M,session_max=1024,eviction=(threads_min=1,threads_max=1),eviction_dirty_target=5MB,eviction_dirty_trigger=80MB,eviction_updates_trigger=80MB,config_base=false,statistics=(fast),log=(enabled=false),builtin_extension_config=(zstd=(compression_level=-7)),file_manager=(close_idle_time=600,close_scan_interval=10,close_handle_minimum=2000),statistics_log=(wait=0),json_output=(error,message),verbose=[recovery_progress:1,checkpoint_progress:1,compact_progress:1,live_restore_progress:1,backup:0,checkpoint:0,compact:0,eviction:0,fileops:0,history_store:0,live_restore:0,recovery:0,rts:0,salvage:0,tiered:0,timestamp:0,transaction:0,verify:0,log:0],"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.485+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":485444,"thread":"1:0x7b6adb30c400","session_name":"wiredtiger_open","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"opening the WiredTiger library"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.499+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":499570,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"connection configuration string parsing completed"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.512+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":512537,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting WiredTiger utility threads"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514532,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting WiredTiger recovery"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514679,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"scanning metadata to find the largest file ID"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514708,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"largest file ID found in the metadata 0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514720,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery log replay has successfully finished and ran for 0 milliseconds"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514735,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1000000,"category_id":33,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global recovery timestamp: (0, 0)"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514744,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1000000,"category_id":33,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global oldest timestamp: (0, 0)"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514763,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY","log_id":1493201,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery was completed successfully and took 0ms, including 0ms for the log replay, 0ms for the rollback to stable, and 0ms for the checkpoint."}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.514+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":514775,"thread":"1:0x7b6adb30c400","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","log_id":1493201,"category_id":33,"verbose_level":"INFO","verbose_level_id":0,"msg":"recovery was completed successfully and took 0ms, including 0ms for the log replay, 0ms for the rollback to stable, and 0ms for the checkpoint."}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.533+00:00"},"s":"I",  "c":"WTEVICT",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":533052,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_EVICTION","log_id":1000000,"category_id":15,"verbose_level":"INFO","verbose_level_id":0,"msg":"starting eviction threads"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.533+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":533756,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"WiredTiger utility threads started successfully"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.534+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1774278085,"ts_usec":534557,"thread":"1:0x7b6adb30c400","session_name":"connection","category":"WT_VERB_RECOVERY","log_id":1000000,"category_id":32,"verbose_level":"INFO","verbose_level_id":0,"msg":"the WiredTiger library has successfully opened"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.534+00:00"},"s":"I",  "c":"STORAGE",  "id":10158001,"ctx":"initandlisten","msg":"Spill WiredTiger opened","attr":{"durationMillis":53}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.544+00:00"},"s":"I",  "c":"STORAGE",  "id":9529901, "ctx":"initandlisten","msg":"Initializing durable catalog","attr":{"numRecords":0}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.544+00:00"},"s":"I",  "c":"STORAGE",  "id":9529902, "ctx":"initandlisten","msg":"Retrieving all idents from storage engine"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.544+00:00"},"s":"I",  "c":"STORAGE",  "id":9529903, "ctx":"initandlisten","msg":"Initializing all collections in durable catalog","attr":{"numEntries":0}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.554+00:00"},"s":"W",  "c":"CONTROL",  "id":22120,   "ctx":"initandlisten","msg":"Access control is not enabled for the database. Read and write access to data and configuration is unrestricted","tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.556+00:00"},"s":"W",  "c":"CONTROL",  "id":9068900, "ctx":"initandlisten","msg":"For customers running the current memory allocator, we suggest changing the contents of the following sysfsFile","attr":{"allocator":"tcmalloc-google","sysfsFile":"/sys/kernel/mm/transparent_hugepage/enabled","currentValue":"never","desiredValue":"always"},"tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.560+00:00"},"s":"W",  "c":"CONTROL",  "id":9068900, "ctx":"initandlisten","msg":"For customers running the current memory allocator, we suggest changing the contents of the following sysfsFile","attr":{"allocator":"tcmalloc-google","sysfsFile":"/sys/kernel/mm/transparent_hugepage/defrag","currentValue":"madvise","desiredValue":"defer+madvise"},"tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.560+00:00"},"s":"W",  "c":"CONTROL",  "id":8640302, "ctx":"initandlisten","msg":"We suggest setting the contents of sysfsFile to 0.","attr":{"sysfsFile":"/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none","currentValue":511},"tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.560+00:00"},"s":"W",  "c":"CONTROL",  "id":8386700, "ctx":"initandlisten","msg":"We suggest setting swappiness to 0 or 1, as swapping can cause performance problems.","attr":{"sysfsFile":"/proc/sys/vm/swappiness","currentValue":60},"tags":["startupWarnings"]}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.560+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"initandlisten","msg":"createCollection","attr":{"namespace":"admin.system.version","uuidDisposition":"provided","uuid":{"uuid":{"$uuid":"e555999b-5b18-42fd-8d43-51885e3c0f0d"}},"options":{"uuid":{"$uuid":"e555999b-5b18-42fd-8d43-51885e3c0f0d"}}}}
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.581+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"initandlisten","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"e555999b-5b18-42fd-8d43-51885e3c0f0d"}},"namespace":"admin.system.version","index":"_id_","ident":"index-b5c73ce0-45da-4e71-b07a-d876feda6395","collectionIdent":"collection-d9ca2c93-94c0-46e8-89dc-0c02e565d3cf","commitTimestamp":null}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.583+00:00"},"s":"I",  "c":"REPL",     "id":20459,   "ctx":"initandlisten","msg":"Setting featureCompatibilityVersion","attr":{"newVersion":"8.2"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.584+00:00"},"s":"I",  "c":"REPL",     "id":5853300, "ctx":"initandlisten","msg":"current featureCompatibilityVersion value","attr":{"featureCompatibilityVersion":"8.2","context":"setFCV"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.586+00:00"},"s":"I",  "c":"NETWORK",  "id":4915702, "ctx":"initandlisten","msg":"Updated wire specification","attr":{"oldSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":27},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":27},"outgoing":{"minWireVersion":6,"maxWireVersion":27},"isInternalClient":true},"newSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":27},"incomingInternalClient":{"minWireVersion":27,"maxWireVersion":27},"outgoing":{"minWireVersion":27,"maxWireVersion":27},"isInternalClient":true}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.587+00:00"},"s":"I",  "c":"NETWORK",  "id":4915702, "ctx":"initandlisten","msg":"Updated wire specification","attr":{"oldSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":27},"incomingInternalClient":{"minWireVersion":27,"maxWireVersion":27},"outgoing":{"minWireVersion":27,"maxWireVersion":27},"isInternalClient":true},"newSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":27},"incomingInternalClient":{"minWireVersion":27,"maxWireVersion":27},"outgoing":{"minWireVersion":27,"maxWireVersion":27},"isInternalClient":true}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.587+00:00"},"s":"I",  "c":"REPL",     "id":5853300, "ctx":"initandlisten","msg":"current featureCompatibilityVersion value","attr":{"featureCompatibilityVersion":"8.2","context":"startup"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.587+00:00"},"s":"I",  "c":"STORAGE",  "id":5071100, "ctx":"initandlisten","msg":"Clearing temp directory"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.588+00:00"},"s":"I",  "c":"STORAGE",  "id":10682200,"ctx":"initandlisten","msg":"Dropping spill idents","attr":{"numIdents":0}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.588+00:00"},"s":"I",  "c":"CONTROL",  "id":6608200, "ctx":"initandlisten","msg":"Initializing cluster server parameters from disk"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.588+00:00"},"s":"I",  "c":"CONTROL",  "id":20536,   "ctx":"initandlisten","msg":"Flow Control is enabled on this deployment"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.594+00:00"},"s":"I",  "c":"FTDC",     "id":20625,   "ctx":"initandlisten","msg":"Initializing full-time diagnostic data capture","attr":{"dataDirectory":"/data/db/diagnostic.data"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.609+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"initandlisten","msg":"createCollection","attr":{"namespace":"local.startup_log","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"41fd6c03-cf17-40ef-9f56-b7a35e671ede"}},"options":{"capped":true,"size":10485760}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.627+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"initandlisten","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"41fd6c03-cf17-40ef-9f56-b7a35e671ede"}},"namespace":"local.startup_log","index":"_id_","ident":"index-c3ac0bbf-be14-4afd-91ca-f41dedc5cfa2","collectionIdent":"collection-79c84c16-e11f-48c8-9c08-1795f0a38a13","commitTimestamp":null}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.628+00:00"},"s":"I",  "c":"REPL",     "id":6015317, "ctx":"initandlisten","msg":"Setting new configuration state","attr":{"newState":"ConfigReplicationDisabled","oldState":"ConfigPreStart"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.628+00:00"},"s":"I",  "c":"STORAGE",  "id":22262,   "ctx":"initandlisten","msg":"Timestamp monitor starting"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.631+00:00"},"s":"I",  "c":"STORAGE",  "id":7333401, "ctx":"initandlisten","msg":"Starting the DiskSpaceMonitor"}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.641+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"/tmp/mongodb-27017.sock"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.642+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"0.0.0.0:27017"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.642+00:00"},"s":"I",  "c":"NETWORK",  "id":23016,   "ctx":"listener","msg":"Waiting for connections","attr":{"port":27017,"ssl":"off"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.643+00:00"},"s":"I",  "c":"CONTROL",  "id":8423403, "ctx":"initandlisten","msg":"mongod startup complete","attr":{"Summary of time elapsed":{"Startup from clean shutdown?":true,"Statistics":{"setUpPeriodicRunnerMillis":0,"setUpOCSPMillis":0,"setUpTransportLayerMillis":9,"initSyncCrashRecoveryMillis":0,"createLockFileMillis":0,"getStorageEngineMetadataMillis":0,"createStorageEngineMillis":329,"writePIDMillis":0,"writeNewMetadataMillis":0,"initializeFCVForIndexMillis":1,"dropAbandonedIdentsMillis":0,"standaloneClusterParamsMillis":0,"userAndRolesGraphMillis":0,"waitForMajorityServiceMillis":0,"startUpReplCoordMillis":0,"recoverChangeStreamMillis":0,"logStartupOptionsMillis":0,"startUpTransportLayerMillis":2,"initAndListenTotalMillis":446}}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.652+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"LogicalSessionCacheRefresh","msg":"createCollection","attr":{"namespace":"config.system.sessions","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"014b3eb9-4b43-4c3f-8bf6-1868b594bdf1"}},"options":{}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.653+00:00"},"s":"I",  "c":"CONTROL",  "id":20712,   "ctx":"LogicalSessionCacheReap","msg":"Sessions collection is not set up; waiting until next sessions reap interval","attr":{"error":"NamespaceNotFound: config.system.sessions does not exist"}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.673+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"LogicalSessionCacheRefresh","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"014b3eb9-4b43-4c3f-8bf6-1868b594bdf1"}},"namespace":"config.system.sessions","index":"_id_","ident":"index-5924613b-1dbe-434c-b26c-fee5c2a670cb","collectionIdent":"collection-379f62fa-c317-4d8f-9388-f8e731b94018","commitTimestamp":null}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.673+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"LogicalSessionCacheRefresh","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"014b3eb9-4b43-4c3f-8bf6-1868b594bdf1"}},"namespace":"config.system.sessions","index":"lsidTTLIndex","ident":"index-176ffb25-0cc3-48ad-91cb-f9b4a400a98a","collectionIdent":"collection-379f62fa-c317-4d8f-9388-f8e731b94018","commitTimestamp":null}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.678+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.6:36448","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"d7760db5-da1e-4ae2-a7c5-5d21dd26b99d"}},"connectionId":1,"connectionCount":1}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.680+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn1","msg":"Connection ended","attr":{"remote":"172.18.0.6:36448","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"d7760db5-da1e-4ae2-a7c5-5d21dd26b99d"}},"connectionId":1,"connectionCount":0}}
+tg_bot_1                | 23.03.2026 15:01:25 [INFO] tg_bot.py: Бот запущен...
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.990+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.5:37394","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"efd3f90e-93eb-4b98-b06d-1b26d73008f2"}},"connectionId":2,"connectionCount":1}}
+getting_schedule_1      | 23.03.2026 15:01:25 [INFO] main.py: Start processing_schedule_from_website...
+getting_schedule_1      | 23.03.2026 15:01:25 [INFO] istu_website_parser.py: Start parsing ISTU schedule website...
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.991+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn2","msg":"client metadata","attr":{"remote":"172.18.0.5:37394","client":"conn2","negotiatedCompressors":[],"doc":{"driver":{"name":"PyMongo","version":"3.11.2"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.991+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn2","msg":"Connection not authenticating","attr":{"client":"172.18.0.5:37394","doc":{"driver":{"name":"PyMongo","version":"3.11.2"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.994+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.5:37404","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"23f8aa01-2a6e-4db8-aa74-d220707745e1"}},"connectionId":3,"connectionCount":2}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:25.995+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn3","msg":"Connection ended","attr":{"remote":"172.18.0.5:37404","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"23f8aa01-2a6e-4db8-aa74-d220707745e1"}},"connectionId":3,"connectionCount":1}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:26.011+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.5:37418","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"9fc73596-9ac4-4b16-900d-83f6982ca28b"}},"connectionId":4,"connectionCount":2}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:26.011+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn4","msg":"client metadata","attr":{"remote":"172.18.0.5:37418","client":"conn4","negotiatedCompressors":[],"doc":{"driver":{"name":"PyMongo","version":"3.11.2"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:26.011+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn4","msg":"Connection not authenticating","attr":{"client":"172.18.0.5:37418","doc":{"driver":{"name":"PyMongo","version":"3.11.2"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.463+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.6:54714","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"073659fd-dbf3-405e-bf0c-d4f15947ff6e"}},"connectionId":5,"connectionCount":3}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.464+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn5","msg":"client metadata","attr":{"remote":"172.18.0.6:54714","client":"conn5","negotiatedCompressors":[],"doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.464+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn5","msg":"Connection not authenticating","attr":{"client":"172.18.0.6:54714","doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.469+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.6:54726","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"5226fd06-3617-49d6-b0c0-c1a1ccde2a0b"}},"connectionId":6,"connectionCount":4}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.470+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn6","msg":"client metadata","attr":{"remote":"172.18.0.6:54726","client":"conn6","negotiatedCompressors":[],"doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:01:35.470+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn6","msg":"Connection not authenticating","attr":{"client":"172.18.0.6:54726","doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+notification_service_1  | Traceback (most recent call last):
+notification_service_1  |   File "start_reminders.py", line 82, in <module>
+notification_service_1  |     main()
+notification_service_1  |   File "start_reminders.py", line 31, in main
+notification_service_1  |     with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
+notification_service_1  | FileNotFoundError: [Errno 2] No such file or directory: 'C:\\_SRP\\_soft\\Smart-schedule-IRNITU2\\users.json'
+smart-schedule-irnitu_notification_service_1 exited with code 1
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.214+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"172.18.0.6:44636","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"9d75c520-25ef-43d9-bce3-7d2361683dd9"}},"connectionId":7,"connectionCount":5}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.214+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn7","msg":"client metadata","attr":{"remote":"172.18.0.6:44636","client":"conn7","negotiatedCompressors":[],"doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.215+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn7","msg":"Connection not authenticating","attr":{"client":"172.18.0.6:44636","doc":{"driver":{"name":"PyMongo","version":"3.11.0"},"os":{"type":"Linux","name":"Linux","architecture":"x86_64","version":"6.8.0-48-generic"},"platform":"CPython 3.8.20.final.0"}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.216+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn7","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":1}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.423+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"conn7","msg":"createCollection","attr":{"namespace":"Smart_schedule_IRNITU.tg_statistics","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"5037b80d-8361-4336-9fab-1dfca400ee6a"}},"options":{}}}
+mongodb_1               | {"t":{"$date":"2026-03-23T15:02:01.433+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn7","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"5037b80d-8361-4336-9fab-1dfca400ee6a"}},"namespace":"Smart_schedule_IRNITU.tg_statistics","index":"_id_","ident":"index-e91bc35f-05a2-49bb-a2a3-d6ceddc1e461","collectionIdent":"collection-2f8ba1e8-6d61-4ed0-97bf-18d7ad9057e7","commitTimestamp":null}}
+^CGracefully stopping... (press Ctrl+C again to force)
+Stopping smart-schedule-irnitu_tg_bot_1               ... done
+Stopping smart-schedule-irnitu_notification_service_1 ... done
+Stopping smart-schedule-irnitu_functions_api_1        ... done
+Stopping smart-schedule-irnitu_mongodb_1              ... done
+Stopping smart-schedule-irnitu_getting_schedule_1     ... done

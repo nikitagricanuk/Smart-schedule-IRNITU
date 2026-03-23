@@ -290,22 +290,26 @@ def main():
         # Время начала работы цикла.
         start_time = time.time()
 
-        if SCHEDULE_SOURCE == 'postgres' and os.environ.get('PG_DB_HOST'):
-            # Институты
-            processing_institutes()
+        try:
+            if SCHEDULE_SOURCE == 'postgres' and os.environ.get('PG_DB_HOST'):
+                # Институты
+                processing_institutes()
 
-            # Группы и курсы
-            processing_groups_and_courses()
+                # Группы и курсы
+                processing_groups_and_courses()
 
-            # Преподаватели
-            processing_teachers()
+                # Преподаватели
+                processing_teachers()
 
-            # Расписание
-            processing_schedule()
-        else:
-            if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
-                logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU website parser.')
-            processing_schedule_from_website()
+                # Расписание
+                processing_schedule()
+            else:
+                if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
+                    logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU website parser.')
+                processing_schedule_from_website()
+        except Exception as e:
+            logger.error(f'Unexpected schedule processing error:\n{e}')
+            traceback.print_exc()
 
         # Обновление базы экзаменов
         try:
