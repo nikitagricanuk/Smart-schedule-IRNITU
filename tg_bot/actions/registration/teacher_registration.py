@@ -59,6 +59,7 @@ def reg_prep_step_2(message, bot, storage, last_msg=None):
         prep_list_2 = []
         prep_and_id_list = []
         content_commands = ['Начать', 'начать', 'Начало', 'start', '/start', 'Регистрация', '/reg']
+        matches_by_word = {}
 
         # Делим полученное ФИО на отдельные слова, на выходе имеем второй список с уникальными значениями по запросу
         for name_unit in message.split():
@@ -66,6 +67,7 @@ def reg_prep_step_2(message, bot, storage, last_msg=None):
             for i in storage.get_register_list_prep(name_unit):
                 prep_and_id_list.append(i)
                 prep_list.append(i['prep'])
+            matches_by_word[name_unit] = list(set(prep_list))
             # Если 2 списка не пустых, ищем элементы, которые повторяются максимальное количество раз
             if prep_list and prep_list_2:
                 prep_list_2 = list(set(prep_list) & set(prep_list_2))
@@ -73,6 +75,12 @@ def reg_prep_step_2(message, bot, storage, last_msg=None):
             elif prep_list and not prep_list_2:
                 prep_list_2 = prep_list
             prep_list = []
+
+        # На сайте ИРНИТУ преподаватели часто хранятся как "Фамилия И.О.".
+        # Для запроса вида "Фамилия Имя Отчество" оставляем fallback по фамилии.
+        if not prep_list_2 and message.split():
+            surname = message.split()[0]
+            prep_list_2 = matches_by_word.get(surname, [])
 
         # Ограничивает размер клавы до 20 преподов
         if len(prep_list_2) > 20:

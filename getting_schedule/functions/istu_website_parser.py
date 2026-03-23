@@ -106,33 +106,36 @@ def parse_groups_html(html: str, institute: str) -> List[Dict[str, Any]]:
 
     kurs_list = soup.find("ul", class_="kurs-list")
     if kurs_list:
-        for course_li in kurs_list.find_all("li", recursive=False):
-            top_level_text = []
-            for node in course_li.contents:
-                if isinstance(node, NavigableString):
-                    top_level_text.append(str(node))
-            course_name = _normalize_course_name(_normalize_spaces(" ".join(top_level_text)))
-
-            groups_ul = course_li.find("ul")
-            if not groups_ul:
+        # ISTU markup can have malformed nested <li>; walk token order and keep current course state.
+        current_course = "1 курс"
+        for node in kurs_list.descendants:
+            if isinstance(node, NavigableString):
+                text = str(node)
+                for course_match in re.finditer(r"Курс\s*(\d+)", text, flags=re.IGNORECASE):
+                    current_course = _normalize_course_name(course_match.group(0))
                 continue
 
-            for anchor in groups_ul.find_all("a", href=True):
-                group_id = _parse_query_int(anchor["href"], "group")
-                if group_id is None or group_id in seen_group_ids:
-                    continue
+            if not isinstance(node, Tag) or node.name != "a":
+                continue
+            href = node.get("href", "")
+            if "group=" not in href:
+                continue
 
-                group_name = _normalize_spaces(anchor.get_text(" ", strip=True))
-                if not group_name:
-                    continue
+            group_id = _parse_query_int(href, "group")
+            if group_id is None or group_id in seen_group_ids:
+                continue
 
-                seen_group_ids.add(group_id)
-                result.append({
-                    "group_id": group_id,
-                    "name": group_name,
-                    "course": course_name,
-                    "institute": institute,
-                })
+            group_name = _normalize_spaces(node.get_text(" ", strip=True))
+            if not group_name:
+                continue
+
+            seen_group_ids.add(group_id)
+            result.append({
+                "group_id": group_id,
+                "name": group_name,
+                "course": current_course,
+                "institute": institute,
+            })
 
     if result:
         return result
