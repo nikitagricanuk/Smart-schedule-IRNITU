@@ -82,5 +82,8 @@ services:
         max-size: "200M"
         max-file: "4"
     volumes:
-      - ./data/db:/data/db
+      - mongo_data:/data/db
     restart: always
+
+volumes:
+  mongo_data:
