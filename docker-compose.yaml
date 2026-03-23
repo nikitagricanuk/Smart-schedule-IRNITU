@@ -62,6 +62,7 @@ services:
       - PG_DB_PASSWORD=${PG_DB_PASSWORD}  # пароль PostgreSQL
       - PG_DB_HOST=${PG_DB_HOST} # адрес PostgreSQL
       - PG_DB_PORT=5432 # порт PostgreSQL (default: 5432)
+      - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website} # источник расписания: istu_website | postgres
       - GETTING_SCHEDULE_TIME_HOURS=1 # время задержки (в часах) между обращениями к PostgreSQL для получения расписания (default: 1)
       - EXAMS_API=${EXAMS_API}
 

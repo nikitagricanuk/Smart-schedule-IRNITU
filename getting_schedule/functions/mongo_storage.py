@@ -87,3 +87,22 @@ class MongodbService(object):
         }
 
         return self._db.status.update_one(filter={'name': 'getting_schedule'}, update={'$set': status}, upsert=True)
+
+    def get_status(self, name: str):
+        """Возвращает документ статуса по имени."""
+        return self._db.status.find_one(filter={'name': name})
+
+    def save_hash(self, hash_name: str, value: str):
+        """Сохраняет контрольную сумму коллекции."""
+        status = {
+            'name': f'hash_{hash_name}',
+            'value': value
+        }
+        return self._db.status.update_one(filter={'name': status['name']}, update={'$set': status}, upsert=True)
+
+    def get_hash(self, hash_name: str):
+        """Возвращает контрольную сумму коллекции."""
+        status = self.get_status(name=f'hash_{hash_name}')
+        if not status:
+            return None
+        return status.get('value')
