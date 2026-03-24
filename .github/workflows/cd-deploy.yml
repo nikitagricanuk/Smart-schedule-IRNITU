@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: cd-deploy-master
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy To FINSRV
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            cd /home/webuser/Smart-schedule-IRNITU
+            git fetch --all --prune
+            git checkout master
+            git pull --ff-only origin master
+
+            if command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE="docker-compose"
+            else
+              COMPOSE="docker compose"
+            fi
+
+            $COMPOSE up -d --build mongodb functions_api getting_schedule tg_bot
+            $COMPOSE ps
