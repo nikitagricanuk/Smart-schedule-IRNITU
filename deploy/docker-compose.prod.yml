@@ -1,0 +1,56 @@
+services:
+  tg_bot:
+    image: ${IMAGE_REGISTRY}/tg_bot:${IMAGE_TAG}
+    restart: always
+    environment:
+      - TG_TOKEN=${TG_TOKEN}
+      - MONGO_DB_ADDR=mongodb
+      - MONGO_DB_PORT=27017
+      - MONGO_DB_DATABASE=Smart_schedule_IRNITU
+      - FUNCTIONS_API_URL=http://functions_api/api/
+      - EXAMS_API=${EXAMS_API}
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+
+  getting_schedule:
+    image: ${IMAGE_REGISTRY}/getting_schedule:${IMAGE_TAG}
+    restart: always
+    environment:
+      - MONGO_DB_ADDR=mongodb
+      - MONGO_DB_PORT=27017
+      - MONGO_DB_DATABASE=Smart_schedule_IRNITU
+      - PG_DB_DATABASE=${PG_DB_DATABASE}
+      - PG_DB_USER=${PG_DB_USER}
+      - PG_DB_PASSWORD=${PG_DB_PASSWORD}
+      - PG_DB_HOST=${PG_DB_HOST}
+      - PG_DB_PORT=5432
+      - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website}
+      - GETTING_SCHEDULE_TIME_HOURS=1
+      - EXAMS_API=${EXAMS_API}
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+
+  functions_api:
+    image: ${IMAGE_REGISTRY}/functions_api:${IMAGE_TAG}
+    restart: always
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+
+  mongodb:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+
+volumes:
+  mongo_data:

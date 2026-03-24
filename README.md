@@ -48,13 +48,18 @@
 
 ## Автодеплой (CD)
 В репозитории добавлен workflow `.github/workflows/cd-deploy.yml`.
-Он запускается при каждом `push` в `master` (и вручную через `workflow_dispatch`) и деплоит сервисы на сервер.
+Он запускается при каждом `push` в `master` (и вручную через `workflow_dispatch`) и работает в 3 этапа:
+- `Quality Gate` - линтинг и проверка сборки compose
+- `Build & Push Images` - сборка Docker-образов и публикация в GHCR с тегами `latest` и `${GITHUB_SHA}`
+- `Deploy` - деплой на сервер только из реестра (без `git pull`)
 
 Для работы CD добавьте в GitHub Secrets:
 - `DEPLOY_HOST` - хост сервера (например, `85.192.25.66`)
 - `DEPLOY_USER` - пользователь SSH (например, `webuser`)
 - `DEPLOY_SSH_KEY` - приватный SSH-ключ для подключения к серверу
 - `DEPLOY_PORT` - SSH порт (необязательно, по умолчанию `22`)
+- `GHCR_USERNAME` - пользователь GitHub для авторизации на сервере в GHCR
+- `GHCR_READ_TOKEN` - GitHub PAT с правом чтения пакетов (`read:packages`)
 
 Workflow деплоит только основные сервисы:
 - `mongodb`
