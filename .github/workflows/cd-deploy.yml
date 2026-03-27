@@ -128,12 +128,11 @@ jobs:
               COMPOSE="docker compose"
             fi
 
-            if [ -z "${{ secrets.GHCR_USERNAME }}" ] || [ -z "${{ secrets.GHCR_READ_TOKEN }}" ]; then
-              echo "GHCR_USERNAME and/or GHCR_READ_TOKEN secrets are empty"
-              exit 1
+            if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_READ_TOKEN }}" ]; then
+              echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            else
+              echo "GHCR credentials are not set in Actions secrets, using existing server docker auth/public access."
             fi
-
-            echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
             $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env pull tg_bot getting_schedule functions_api
             $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env up -d mongodb functions_api getting_schedule tg_bot

@@ -59,8 +59,9 @@
 - `DEPLOY_SSH_KEY` - приватный SSH-ключ для подключения к серверу
 - `DEPLOY_PORT` - SSH порт (необязательно, по умолчанию `22`)
 - `DEPLOY_PATH` - путь до проекта на сервере (необязательно, по умолчанию `$HOME/Smart-schedule-IRNITU`)
-- `GHCR_USERNAME` - пользователь GitHub для авторизации на сервере в GHCR
-- `GHCR_READ_TOKEN` - GitHub PAT с правом чтения пакетов (`read:packages`)
+- `GHCR_USERNAME` - пользователь GitHub для авторизации на сервере в GHCR (опционально)
+- `GHCR_READ_TOKEN` - GitHub PAT с правом чтения пакетов (`read:packages`) (опционально)
+Если не заданы, workflow использует уже настроенный `docker login` на сервере (или публичный доступ к образам).
 
 Workflow деплоит только основные сервисы:
 - `mongodb`
