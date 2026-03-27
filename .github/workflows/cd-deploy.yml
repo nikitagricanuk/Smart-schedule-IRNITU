@@ -98,7 +98,8 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           script_stop: true
           script: |
-            set -euxo pipefail
+            # ssh-action executes via /bin/sh on many hosts; keep options POSIX-compatible.
+            set -eux
 
             DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
             if [ -z "$DEPLOY_DIR" ]; then
