@@ -1,82 +1,67 @@
-"""Запуск напоминаний от вк и tg в двух потоках"""
-import json
+"""Запуск сервиса напоминаний для Telegram и VK."""
+
 import os
 from threading import Thread
-from time import sleep
 
-import telebot
 import vk_api
-from dotenv import load_dotenv
-from telebot.apihelper import ApiTelegramException
 
 from reminder import Reminder
-from tools.reminder_updater import VKReminderUpdater, TGReminderUpdater
+from tools.aiogram_sync import SyncAiogramBot
+from tools.logger import logger
+from tools.reminder_updater import TGReminderUpdater, VKReminderUpdater
 
-load_dotenv()
 
-TG_TOKEN = os.environ.get('TG_TOKEN')
-VK_TOKEN = os.environ.get('VK_TOKEN')
+def get_env(name: str) -> str:
+    return (os.environ.get(name) or '').strip()
 
-tg_bot = telebot.TeleBot(TG_TOKEN)
-# tg_reminder = Reminder(bot_platform='tg', bot=tg_bot)
 
-# vk_bot = vk_api.VkApi(token=VK_TOKEN)
-# vk_reminder = Reminder(bot_platform='vk', bot=vk_bot)
+def build_workers():
+    workers = []
+    resources = []
 
-# reminder_updater_vk = VKReminderUpdater()
-# reminder_updater_tg = TGReminderUpdater()
+    tg_token = get_env('TG_TOKEN')
+    if tg_token:
+        tg_bot = SyncAiogramBot(tg_token)
+        tg_reminder = Reminder(bot_platform='tg', bot=tg_bot)
+        workers.append(Thread(target=tg_reminder.search_for_reminders, name='tg_reminder'))
+        workers.append(Thread(target=TGReminderUpdater().start, name='tg_reminder_updater'))
+        resources.append(tg_bot)
+    else:
+        logger.warning('TG_TOKEN is not set, Telegram reminders are disabled')
+
+    vk_token = get_env('VK_TOKEN')
+    if vk_token:
+        vk_bot = vk_api.VkApi(token=vk_token)
+        vk_reminder = Reminder(bot_platform='vk', bot=vk_bot)
+        workers.append(Thread(target=vk_reminder.search_for_reminders, name='vk_reminder'))
+        workers.append(Thread(target=VKReminderUpdater().start, name='vk_reminder_updater'))
+    else:
+        logger.warning('VK_TOKEN is not set, VK reminders are disabled')
+
+    if not workers:
+        raise RuntimeError('No reminder transports configured. Set TG_TOKEN and/or VK_TOKEN.')
+
+    return workers, resources
 
 
 def main():
-    with open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\users.json", 'r') as f:
-        data = json.load(f)
+    workers, resources = build_workers()
 
-    sent_chats = []
     try:
-        with open("sent.txt", "r") as f:
-            sent_chats = [i.strip() for i in f.readlines()]
-    except:
-        pass
+        for worker in workers:
+            worker.start()
 
-    test = False
-
-    with open("sent.txt", "a") as f:
-        for i in data:
-            if not test:
-                chat_id = str(i['chat_id'])
-                if chat_id in sent_chats:
-                    continue
-            else:
-                chat_id = 1112043053
-
-            print(chat_id)
-            f.write(f"{chat_id}\n")
-            f.flush()
-
+        for worker in workers:
+            worker.join()
+    except KeyboardInterrupt:
+        logger.info('notification_service stopped')
+    finally:
+        for resource in resources:
             try:
-                tg_bot.send_message(chat_id,
-                                  # open("C:\_SRP\_soft\Smart-schedule-IRNITU2\itacademy220126.jpg", 'rb'),
-                                  """
-ИРНИТУ и En+ Group реализуют уникальный образовательный проект [Академия IT](http://itenergy.academy/), благодаря которому будущие специалисты в сфере Digital получат не только практические знания, но и высокооплачиваемую и интересную работу в известной компании. 
+                resource.close()
+            except Exception as exc:
+                logger.exception(exc)
 
-Чтобы сделать учебный процесс более эффективным, нам важно знать ваше мнение по нижеприведенным вопросам.  Просим вас заполнить небольшую анкету [https://docs.google.com/forms/d/e/1FAIpQLSdQeGlxb5-BE1_nUZvaEAMT-YHQ5adVwULIV3Qc8SM3-E1mdQ/viewform?vc=0&c=0&w=1&flr=0](https://docs.google.com/forms/d/e/1FAIpQLSdQeGlxb5-BE1_nUZvaEAMT-YHQ5adVwULIV3Qc8SM3-E1mdQ/viewform?vc=0&c=0&w=1&flr=0)
- 
-Полученные ответы помогут выявить и оценить сильные и слабые стороны проекта, а также максимально адаптировать его с учетом ваших запросов и ожиданий.  
-                                """.strip(), parse_mode="Markdown")
-                # tg_bot.send_photo(
-                #     chat_id,
-                #     open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\vac122021_1.jpg", 'rb'),
-                # )
-                # tg_bot.send_photo(
-                #     chat_id,
-                #     open(r"C:\_SRP\_soft\Smart-schedule-IRNITU2\vac122021_2.jpg", 'rb'),
-                #     caption="ИРНИТУ - COVID-19. Важное - https://www.istu.edu/deyatelnost/bezopasnost/covid/"
-                # )
-            except ApiTelegramException as ex:
-                print(str(ex))
-
-            if test:
-                break
 
 if __name__ == '__main__':
     main()

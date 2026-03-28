@@ -2,16 +2,16 @@
 import os
 from threading import Thread
 
-import telebot
 import vk_api
 
 from reminder import Reminder
+from tools.aiogram_sync import SyncAiogramBot
 from tools.reminder_updater import VKReminderUpdater, TGReminderUpdater
 
 TG_TOKEN = os.environ.get('TG_TOKEN')
 VK_TOKEN = os.environ.get('VK_TOKEN')
 
-tg_bot = telebot.TeleBot(TG_TOKEN)
+tg_bot = SyncAiogramBot(TG_TOKEN)
 tg_reminder = Reminder(bot_platform='tg', bot=tg_bot)
 
 vk_bot = vk_api.VkApi(token=VK_TOKEN)

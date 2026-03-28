@@ -1,4 +1,4 @@
-from telebot import types
+from aiogram import types
 import json
 
 MAX_CALLBACK_RANGE = 41
@@ -243,4 +243,15 @@ def make_keyboard_nearlesson():
     btn3 = types.KeyboardButton('Основное меню')
     markup.add(btn1, btn2)
     markup.add(btn3)
+    return markup
+
+
+def make_inline_keyboard_from_items(items, items_in_row=3):
+    """Инлайн-клавиатура, где текст кнопки используется как callback_data."""
+    markup = types.InlineKeyboardMarkup(row_width=items_in_row)
+    buttons = [types.InlineKeyboardButton(text=item, callback_data=item) for item in items]
+
+    for index in range(0, len(buttons), items_in_row):
+        markup.row(*buttons[index:index + items_in_row])
+
     return markup

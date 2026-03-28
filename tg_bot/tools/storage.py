@@ -50,7 +50,7 @@ class MongodbService(object):
     def get_register_list_prep(self, search_words: str) -> list:
         """возвращает список преподавателей по слову из поиска"""
         return list(self._db.prepods_schedule.find(
-            filter={'prep': {'$regex': f"(^{search_words}\s.*)|(.*\s{search_words}\s.*)|(.*\s{search_words}$)",
+            filter={'prep': {'$regex': f"(^{search_words}\\s.*)|(.*\\s{search_words}\\s.*)|(.*\\s{search_words}$)",
                              "$options": 'i'}}))
 
     def get_search_list(self, search_words: str) -> list:
@@ -99,7 +99,7 @@ class MongodbService(object):
     def get_register_list_prep(self, search_words: str) -> list:
         """возвращает список преподавателей по слову из поиска"""
         return list(self._db.prepods_schedule.find(
-            filter={'prep': {'$regex': f"(^{search_words}\s.*)|(.*\s{search_words}\s.*)|(.*\s{search_words}$)",
+            filter={'prep': {'$regex': f"(^{search_words}\\s.*)|(.*\\s{search_words}\\s.*)|(.*\\s{search_words}$)",
                              "$options": 'i'}}))
 
     def get_prep(self, surname: str) -> list:

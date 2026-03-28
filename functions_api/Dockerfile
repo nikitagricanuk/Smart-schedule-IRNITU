@@ -6,6 +6,7 @@ WORKDIR /usr/src/functions_api/
 
 COPY . /usr/src/functions_api/
 RUN pip install --no-cache-dir -r requirements.txt
+RUN sed -i 's/\r$//' ./run.sh
 
 RUN apt update && \
     apt install -y locales && \
@@ -19,4 +20,4 @@ EXPOSE 8080
 
 RUN chmod a+x ./run.sh
 
-CMD ["./run.sh"]
+CMD ["/bin/bash", "./run.sh"]
