@@ -52,6 +52,15 @@ content_prep_group = ['found_prep', 'prep_list']
 content_aud = ['search_aud', 'menu_aud']
 
 
+def short_text(value, limit=120):
+    if value is None:
+        return ''
+    value = str(value).replace('\n', ' ')
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3] + '...'
+
+
 async def run_sync(func, *args, **kwargs):
     loop = asyncio.get_running_loop()
     bound = partial(func, *args, **kwargs)
@@ -122,8 +131,13 @@ def handle_unknown_text(message):
 async def message_router(message: types.Message):
     pending_step = step_registry.pop(message.chat.id)
     if pending_step is not None:
+        logger.info(
+            f'Next step received: chat_id={message.chat.id}, '
+            f'text="{short_text(getattr(message, "text", ""))}"'
+        )
         try:
             await run_sync(pending_step.callback, message, *pending_step.args, **pending_step.kwargs)
+            logger.info(f'Next step handled: chat_id={message.chat.id}')
         except Exception as exc:
             logger.exception(exc)
         return
@@ -132,6 +146,7 @@ async def message_router(message: types.Message):
         return
 
     text = message.text or ''
+    logger.info(f'Message received: chat_id={message.chat.id}, text="{short_text(text)}"')
 
     try:
         if text in ['Начать', 'начать', 'Старт', 'старт', '/start', 'start']:
@@ -160,6 +175,7 @@ async def message_router(message: types.Message):
             await run_sync(main_menu.processing_main_buttons, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
         else:
             await run_sync(handle_unknown_text, message)
+        logger.info(f'Message handled: chat_id={message.chat.id}, text="{short_text(text)}"')
     except Exception as exc:
         logger.exception(exc)
 
@@ -167,6 +183,7 @@ async def message_router(message: types.Message):
 @dp.callback_query_handler(lambda callback_query: True)
 async def callback_router(callback_query: types.CallbackQuery):
     data = callback_query.data or ''
+    logger.info(f'Callback received: chat_id={callback_query.from_user.id}, data="{short_text(data)}"')
 
     try:
         await callback_query.answer()
@@ -196,6 +213,7 @@ async def callback_router(callback_query: types.CallbackQuery):
                 tz=TZ_IRKUTSK,
             )
             logger.info(f'Inline button data: {data}')
+        logger.info(f'Callback handled: chat_id={callback_query.from_user.id}, data="{short_text(data)}"')
     except Exception as exc:
         logger.exception(exc)
 
