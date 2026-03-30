@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from pymongo import MongoClient
 
 MONGO_DB_ADDR = os.environ.get('MONGO_DB_ADDR', default='localhost')
@@ -88,9 +89,24 @@ class MongodbService(object):
 
         return self._db.status.update_one(filter={'name': 'getting_schedule'}, update={'$set': status}, upsert=True)
 
+    def update_runtime_status(self, **fields):
+        """Updates current runtime status for getting_schedule."""
+        status = {
+            'name': 'getting_schedule',
+            'updated_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+        }
+        status.update(fields)
+        return self._db.status.update_one(filter={'name': 'getting_schedule'}, update={'$set': status}, upsert=True)
+
     def get_status(self, name: str):
         """Возвращает документ статуса по имени."""
         return self._db.status.find_one(filter={'name': name})
+
+    def collection_has_documents(self, collection: str) -> bool:
+        return self._db[collection].find_one({}, {'_id': 1}) is not None
+
+    def get_data(self, collection: str) -> list:
+        return list(self._db[collection].find())
 
     def save_hash(self, hash_name: str, value: str):
         """Сохраняет контрольную сумму коллекции."""

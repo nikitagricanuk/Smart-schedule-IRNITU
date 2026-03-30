@@ -12,6 +12,7 @@ import psycopg2
 
 import time
 import os
+from datetime import datetime, timezone
 
 import json
 import requests
@@ -23,6 +24,99 @@ GETTING_SCHEDULE_TIME_HOURS = float(os.environ.get('GETTING_SCHEDULE_TIME_HOURS'
 SCHEDULE_SOURCE = os.environ.get('SCHEDULE_SOURCE', 'istu_website').lower().strip()
 
 mongo_storage = MongodbService().get_instance()
+
+
+def _status_timestamp() -> str:
+    return datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+
+
+def _update_runtime_status(state: str, stage: str, **extra):
+    status = {
+        'state': state,
+        'stage': stage,
+        'source': SCHEDULE_SOURCE,
+    }
+    status.update(extra)
+    try:
+        mongo_storage.update_runtime_status(**status)
+    except Exception as error:
+        logger.warning(f'Failed to save getting_schedule runtime status: {error}')
+
+
+def _parse_status_datetime(value: str):
+    if not value:
+        return None
+    try:
+        normalized = value[:-1] + '+00:00' if value.endswith('Z') else value
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _can_use_cached_website_data() -> bool:
+    status = mongo_storage.get_status('getting_schedule')
+    if not status:
+        return False
+
+    last_success_at = _parse_status_datetime(status.get('last_success_at'))
+    if not last_success_at:
+        return False
+
+    cache_age_sec = (datetime.now(timezone.utc) - last_success_at).total_seconds()
+    if cache_age_sec >= GETTING_SCHEDULE_TIME_HOURS:
+        return False
+
+    required_collections = ['groups', 'schedule', 'prepods_schedule']
+    missing_collections = [
+        collection for collection in required_collections
+        if not mongo_storage.collection_has_documents(collection)
+    ]
+    if missing_collections:
+        logger.warning(
+            f'Cached schedule status exists, but required collections are empty: {", ".join(missing_collections)}'
+        )
+        return False
+
+    logger.info(
+        f'Using cached website schedule data from {status.get("last_success_at")} '
+        f'(age={round(cache_age_sec, 1)} sec); skip parsing on this start.'
+    )
+    return True
+
+
+def _restore_cached_empty_schedule_docs(new_docs: list, collection: str, key_field: str) -> list:
+    cached_docs = {
+        doc.get(key_field): doc
+        for doc in mongo_storage.get_data(collection)
+        if doc.get(key_field)
+    }
+    restored_count = 0
+    merged_docs = []
+
+    for doc in new_docs:
+        doc_key = doc.get(key_field)
+        new_schedule = doc.get('schedule', [])
+        cached_doc = cached_docs.get(doc_key)
+        cached_schedule = cached_doc.get('schedule', []) if cached_doc else []
+
+        if not new_schedule and cached_schedule:
+            merged_docs.append(cached_doc)
+            restored_count += 1
+            logger.warning(
+                f'{collection}: restored cached schedule for {key_field}="{doc_key}" '
+                'because newly parsed schedule is empty'
+            )
+            continue
+
+        merged_docs.append(doc)
+
+    if restored_count:
+        logger.warning(f'{collection}: restored {restored_count} cached schedules after empty parse results')
+
+    return merged_docs
 
 
 def _build_hash(data) -> str:
@@ -58,8 +152,34 @@ def processing_schedule_from_website():
     logger.info('Start processing_schedule_from_website...')
     start_time = time.time()
 
-    parser = ISTUScheduleParser()
+    _update_runtime_status(
+        state='running',
+        stage='starting_website_parser',
+        started_at=_status_timestamp(),
+    )
+
+    def parser_progress_callback(stage: str, payload: dict):
+        _update_runtime_status(
+            state='running',
+            stage=stage,
+            **payload,
+        )
+
+    parser = ISTUScheduleParser(progress_callback=parser_progress_callback)
     data = parser.parse()
+    data['schedule'] = _restore_cached_empty_schedule_docs(
+        new_docs=data['schedule'],
+        collection='schedule',
+        key_field='group',
+    )
+
+    _update_runtime_status(
+        state='running',
+        stage='saving_collections',
+        parsed_groups=len(data['schedule']),
+        parsed_teachers=len(data['prepods_schedule']),
+        parsed_auditories=len(data['auditories_schedule']),
+    )
 
     _save_collection_if_changed(
         hash_name='institutes',
@@ -101,6 +221,17 @@ def processing_schedule_from_website():
     )
 
     end_time = time.time()
+    finished_at = _status_timestamp()
+    _update_runtime_status(
+        state='success',
+        stage='website_processing_completed',
+        finished_at=finished_at,
+        last_success_at=finished_at,
+        last_duration_sec=round(end_time - start_time, 2),
+        parsed_groups=len(data['schedule']),
+        parsed_teachers=len(data['prepods_schedule']),
+        parsed_auditories=len(data['auditories_schedule']),
+    )
     logger.info(f'Processing_schedule_from_website successful. Operation time: {end_time - start_time} seconds.')
 
 
@@ -289,6 +420,15 @@ def main():
     while True:
         # Время начала работы цикла.
         start_time = time.time()
+        cycle_started_at = _status_timestamp()
+        cycle_failed = False
+
+        _update_runtime_status(
+            state='running',
+            stage='cycle_started',
+            cycle_started_at=cycle_started_at,
+            cache_used=False,
+        )
 
         try:
             if SCHEDULE_SOURCE == 'postgres' and os.environ.get('PG_DB_HOST'):
@@ -306,8 +446,22 @@ def main():
             else:
                 if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
                     logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU website parser.')
-                processing_schedule_from_website()
+                if _can_use_cached_website_data():
+                    _update_runtime_status(
+                        state='success',
+                        stage='using_cached_website_data',
+                        cache_used=True,
+                    )
+                else:
+                    processing_schedule_from_website()
         except Exception as e:
+            cycle_failed = True
+            _update_runtime_status(
+                state='error',
+                stage='schedule_processing_failed',
+                last_error=str(e),
+                cycle_started_at=cycle_started_at,
+            )
             logger.error(f'Unexpected schedule processing error:\n{e}')
             traceback.print_exc()
 
@@ -319,6 +473,14 @@ def main():
 
         # Время окончания работы цикла.
         end_time = time.time()
+        _update_runtime_status(
+            state='idle',
+            stage='waiting_for_next_cycle' if not cycle_failed else 'waiting_after_error',
+            cycle_started_at=cycle_started_at,
+            cycle_finished_at=_status_timestamp(),
+            last_cycle_duration_sec=round(end_time - start_time, 2),
+            next_run_in_hours=GETTING_SCHEDULE_TIME_HOURS / 60 / 60,
+        )
         logger.info(f'Total operating time --- {end_time - start_time} seconds ---')
 
         # Задержка работы цикла (в часах).

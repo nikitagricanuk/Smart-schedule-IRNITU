@@ -26,6 +26,21 @@ def groups_exam(group):
     return schedule
 
 
+def _send_schedule_not_published(bot, chat_id):
+    bot.send_message(
+        chat_id=chat_id,
+        text=(
+            "\u0414\u043b\u044f \u0432\u0430\u0448\u0435\u0439 \u0433\u0440\u0443\u043f\u043f\u044b "
+            "\u0441\u0435\u0439\u0447\u0430\u0441 \u043d\u0435\u0442 "
+            "\u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u043d\u043e\u0433\u043e "
+            "\u0440\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u043d\u0430 "
+            "\u0441\u0430\u0439\u0442\u0435 \u0418\u0420\u041d\u0418\u0422\u0423\n"
+            "\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 "
+            "\u043f\u043e\u0437\u0436\u0435\u23f1"
+        ),
+        reply_markup=keyboards.make_keyboard_start_menu(),
+    )
+
 
 def get_schedule(bot, message, storage, tz):
     chat_id = message.chat.id
@@ -45,6 +60,10 @@ def get_schedule(bot, message, storage, tz):
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
             schedule = storage.get_schedule_prep(group=group)
+        if schedule and schedule.get('schedule') == []:
+            _send_schedule_not_published(bot=bot, chat_id=chat_id)
+            statistics.add(action=data, storage=storage, tz=tz)
+            return
         if not schedule or schedule['schedule'] == []:
             bot.send_message(chat_id=chat_id, text='Расписание временно недоступно\nПопробуйте позже⏱')
             statistics.add(action=data, storage=storage, tz=tz)
@@ -87,6 +106,10 @@ def get_schedule(bot, message, storage, tz):
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
             schedule = storage.get_schedule_prep(group=group)
+        if schedule and schedule.get('schedule') == []:
+            _send_schedule_not_published(bot=bot, chat_id=chat_id)
+            statistics.add(action='Р Р°СЃРїРёСЃР°РЅРёРµ РЅР° СЃРµРіРѕРґРЅСЏ', storage=storage, tz=tz)
+            return
         if not schedule:
             bot.send_message(chat_id=chat_id, text='Расписание временно недоступно🚫😣\n'
                                                    'Попробуйте позже⏱',
@@ -159,6 +182,10 @@ def get_schedule(bot, message, storage, tz):
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
             schedule = storage.get_schedule_prep(group=group)
+        if schedule and schedule.get('schedule') == []:
+            _send_schedule_not_published(bot=bot, chat_id=chat_id)
+            statistics.add(action='Р Р°СЃРїРёСЃР°РЅРёРµ РЅР° Р·Р°РІС‚СЂР°', storage=storage, tz=tz)
+            return
         if not schedule:
             bot.send_message(chat_id=chat_id, text='Расписание временно недоступно🚫😣\n'
                                                    'Попробуйте позже⏱',
@@ -205,6 +232,10 @@ def get_schedule(bot, message, storage, tz):
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
             schedule = storage.get_schedule_prep(group=group)
+        if schedule and schedule.get('schedule') == []:
+            _send_schedule_not_published(bot=bot, chat_id=chat_id)
+            statistics.add(action='РўРµРєСѓС‰Р°СЏ', storage=storage, tz=tz)
+            return
         if not schedule:
             bot.send_message(chat_id=chat_id, text='Расписание временно недоступно🚫😣\n'
                                                    'Попробуйте позже⏱',
@@ -253,6 +284,10 @@ def get_schedule(bot, message, storage, tz):
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
             schedule = storage.get_schedule_prep(group=group)
+        if schedule and schedule.get('schedule') == []:
+            _send_schedule_not_published(bot=bot, chat_id=chat_id)
+            statistics.add(action='РЎР»РµРґСѓСЋС‰Р°СЏ', storage=storage, tz=tz)
+            return
         if not schedule:
             bot.send_message(chat_id=chat_id, text='Расписание временно недоступно🚫😣\n'
                                                    'Попробуйте позже⏱',

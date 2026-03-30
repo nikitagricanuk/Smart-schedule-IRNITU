@@ -1,6 +1,7 @@
 import os
 import re
 from pymongo import MongoClient
+from tools.logger import logger
 
 MONGO_DB_ADDR = os.environ.get('MONGO_DB_ADDR')
 MONGO_DB_PORT = os.environ.get('MONGO_DB_PORT')
@@ -145,7 +146,13 @@ class MongodbService(object):
 
     def get_schedule(self, group):
         """возвращает расписание группы"""
-        return self._db.schedule.find_one(filter={'group': group})
+        schedule_doc = self._db.schedule.find_one(filter={'group': group})
+        if not schedule_doc:
+            logger.warning(f'Schedule document not found in Mongo for group="{group}"')
+            return None
+        if not schedule_doc.get('schedule'):
+            logger.warning(f'Schedule document is empty in Mongo for group="{group}"')
+        return schedule_doc
 
     def save_statistics(self, action: str, date: str, time: str):
         statistics = {

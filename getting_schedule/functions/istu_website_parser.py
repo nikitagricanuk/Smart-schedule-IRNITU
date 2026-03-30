@@ -1,8 +1,11 @@
 import os
 import re
+import time
 import zlib
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from threading import local
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -16,6 +19,18 @@ DEFAULT_TIMEOUT_SEC = 20
 DEFAULT_RETRIES = 2
 DEFAULT_MAX_WORKERS = 8
 DEFAULT_MIN_SUCCESS_RATE = 0.7
+DEFAULT_PROGRESS_UPDATES = 20
+DEFAULT_MARKER_RETRIES = 1
+DEFAULT_MARKER_RETRY_DELAY_SEC = 1
+DEFAULT_DETAILED_LOGS_ENABLED = False
+DEFAULT_PROGRESS_LOGS_ENABLED = True
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _normalize_spaces(value: str) -> str:
@@ -234,22 +249,77 @@ def _merge_group_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any
     day_lessons.append(lesson)
 
 
+def _find_schedule_container(soup: BeautifulSoup) -> Optional[Tag]:
+    schedule_container = soup.select_one("div.full-odd-week, div.full-even-week")
+    if schedule_container:
+        return schedule_container
+
+    day_heading = soup.select_one("h3.day-heading")
+    if day_heading and isinstance(day_heading.parent, Tag):
+        return day_heading.parent
+
+    return None
+
+
+def _html_debug_summary(html: str) -> str:
+    html_lower = html.lower()
+    markers = {
+        "full_odd_week": 'full-odd-week' in html_lower,
+        "full_even_week": 'full-even-week' in html_lower,
+        "class_all_week": 'class-all-week' in html_lower,
+        "class_even_week": 'class-even-week' in html_lower,
+        "class_odd_week": 'class-odd-week' in html_lower,
+        "day_heading": 'day-heading' in html_lower,
+    }
+    soup = BeautifulSoup(html, "html.parser")
+    title = _normalize_spaces(soup.title.get_text(" ", strip=True)) if soup.title else ""
+    body_preview = _normalize_spaces(soup.get_text(" ", strip=True))
+    preview = body_preview[:300]
+    markers_str = ", ".join(f"{key}={value}" for key, value in markers.items())
+    return f"{markers_str}, title={title}, preview={preview}"
+
+
+def _html_has_schedule_markers(html: str) -> bool:
+    html_lower = html.lower()
+    return any(
+        marker in html_lower
+        for marker in (
+            "full-odd-week",
+            "full-even-week",
+            "class-all-week",
+            "class-even-week",
+            "class-odd-week",
+            "day-heading",
+        )
+    )
+
+
 def parse_group_schedule_html(
     html: str,
     fallback_group_name: str,
+    detailed_logs_enabled: bool = DEFAULT_DETAILED_LOGS_ENABLED,
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     soup = BeautifulSoup(html, "html.parser")
     group_name = _extract_group_name(soup, fallback_group_name)
 
-    schedule_container = soup.find("div", class_="full-odd-week")
+    schedule_container = _find_schedule_container(soup)
     if not schedule_container:
+        if detailed_logs_enabled:
+            logger.warning(
+                f'Group "{group_name}": schedule container not found on ISTU page; '
+                f'{_html_debug_summary(html)}'
+            )
         return group_name, [], []
 
     day_to_lessons: Dict[str, List[Dict[str, Any]]] = {}
     events: List[Dict[str, Any]] = []
     valid_days = set(schedule_tools.DAYS.values())
+    day_heading_candidates = 0
+    valid_day_headings = 0
+    recognized_week_tails = 0
 
     for day_heading in schedule_container.find_all("h3", class_="day-heading"):
+        day_heading_candidates += 1
         day_heading_text = _normalize_spaces(day_heading.get_text(" ", strip=True))
         if "," not in day_heading_text:
             continue
@@ -257,6 +327,7 @@ def parse_group_schedule_html(
         day_name = day_heading_text.split(",", 1)[0].strip().lower()
         if day_name not in valid_days:
             continue
+        valid_day_headings += 1
 
         class_lines = day_heading.find_next_sibling("div", class_="class-lines")
         if not class_lines:
@@ -281,6 +352,7 @@ def parse_group_schedule_html(
                 week = _normalize_week(tail.get("class", []))
                 if not week:
                     continue
+                recognized_week_tails += 1
 
                 tail_text = _normalize_spaces(tail.get_text(" ", strip=True)).lower()
                 if "свободно" in tail_text:
@@ -382,6 +454,18 @@ def parse_group_schedule_html(
             "lessons": lessons,
         })
     schedule = schedule_tools.days_in_right_order(schedule)
+
+    if not schedule:
+        if day_heading_candidates == 0:
+            empty_reason = "no day headings inside schedule container"
+        elif valid_day_headings == 0:
+            empty_reason = "no valid weekday headings recognized"
+        elif recognized_week_tails == 0:
+            empty_reason = "no lesson tails with supported week markers found"
+        else:
+            empty_reason = "page parsed but zero lessons were extracted"
+        if detailed_logs_enabled:
+            logger.warning(f'Group "{group_name}": parsed empty schedule, reason={empty_reason}')
 
     return group_name, schedule, events
 
@@ -538,7 +622,7 @@ def build_teacher_and_auditory_schedules(
 
 
 class ISTUScheduleParser:
-    def __init__(self):
+    def __init__(self, progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None):
         self.base_url = os.environ.get("ISTU_SCHEDULE_URL", DEFAULT_BASE_URL)
         self.timeout_sec = float(os.environ.get("ISTU_REQUEST_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC))
         self.retries = int(os.environ.get("ISTU_REQUEST_RETRIES", DEFAULT_RETRIES))
@@ -546,33 +630,165 @@ class ISTUScheduleParser:
         self.min_success_rate = float(os.environ.get("ISTU_MIN_SUCCESS_RATE", DEFAULT_MIN_SUCCESS_RATE))
         self.groups_limit = int(os.environ.get("ISTU_GROUPS_LIMIT", 0))
         self.request_delay_sec = float(os.environ.get("ISTU_REQUEST_DELAY_SEC", 0))
+        self.marker_retries = int(os.environ.get("ISTU_MARKER_RETRIES", DEFAULT_MARKER_RETRIES))
+        self.marker_retry_delay_sec = float(
+            os.environ.get("ISTU_MARKER_RETRY_DELAY_SEC", DEFAULT_MARKER_RETRY_DELAY_SEC)
+        )
+        self.detailed_logs_enabled = _env_flag("ISTU_DETAILED_LOGS", DEFAULT_DETAILED_LOGS_ENABLED)
+        self.progress_logs_enabled = _env_flag("ISTU_PROGRESS_LOGS", DEFAULT_PROGRESS_LOGS_ENABLED)
+        self.progress_callback = progress_callback
+        self._thread_local = local()
 
-    def _fetch_html(self, params: Optional[Dict[str, Any]] = None) -> str:
+    def _log_detailed_warning(self, message: str) -> None:
+        if self.detailed_logs_enabled:
+            logger.warning(message)
+
+    def _log_detailed_info(self, message: str) -> None:
+        if self.detailed_logs_enabled:
+            logger.info(message)
+
+    def _emit_progress(self, stage: str, **payload: Any) -> None:
+        if not self.progress_callback:
+            return
+        try:
+            self.progress_callback(stage, payload)
+        except Exception as error:
+            logger.warning(f"Failed to publish parser progress for stage={stage}: {error}")
+
+    def _log_group_progress(self, completed: int, total: int, successful: int, failed: int) -> None:
+        progress_percent = int((completed / total) * 100) if total else 100
+        if self.progress_logs_enabled:
+            logger.info(
+                "ISTU parsing progress: "
+                f"{completed}/{total} groups ({progress_percent}%), "
+                f"successful={successful}, failed={failed}"
+            )
+        self._emit_progress(
+            "parsing_group_pages",
+            total_groups=total,
+            completed_groups=completed,
+            successful_groups=successful,
+            failed_groups=failed,
+            progress_percent=progress_percent,
+        )
+
+    def _get_session(self) -> requests.Session:
+        session = getattr(self._thread_local, "session", None)
+        if session is None:
+            session = requests.Session()
+            session.headers.update({
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/135.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+            })
+            self._thread_local.session = session
+        return session
+
+    def _fetch_page(
+        self,
+        params: Optional[Dict[str, Any]] = None,
+        base_url: Optional[str] = None,
+    ) -> Tuple[str, str]:
         last_error = None
+        request_url = base_url or self.base_url
+        session = self._get_session()
         for attempt in range(self.retries + 1):
             try:
-                response = requests.get(
-                    url=self.base_url,
+                response = session.get(
+                    url=request_url,
                     params=params or {},
                     timeout=self.timeout_sec,
-                    headers={"User-Agent": "SmartScheduleIRNITUBot/1.0"},
                 )
                 response.raise_for_status()
                 if self.request_delay_sec > 0:
-                    import time
                     time.sleep(self.request_delay_sec)
-                return response.text
+                return response.text, response.url
             except requests.RequestException as error:
                 last_error = error
                 logger.warning(
-                    f"Failed to fetch ISTU page (attempt {attempt + 1}/{self.retries + 1}, params={params}): {error}"
+                    f"Failed to fetch ISTU page (attempt {attempt + 1}/{self.retries + 1}, "
+                    f"url={request_url}, params={params}): {error}"
                 )
-        raise RuntimeError(f"Could not fetch ISTU page for params={params}: {last_error}")
+        raise RuntimeError(f"Could not fetch ISTU page for url={request_url}, params={params}: {last_error}")
+
+    def _fetch_html(self, params: Optional[Dict[str, Any]] = None, base_url: Optional[str] = None) -> str:
+        html, _ = self._fetch_page(params=params, base_url=base_url)
+        return html
+
+    def _get_default_schedule_url(self) -> str:
+        return self.base_url.rstrip("/") + "/default"
+
+    def _build_group_request_variants(self, group_id: int) -> List[Tuple[str, Dict[str, Any], str]]:
+        today = datetime.now().strftime("%Y-%m-%d")
+        variants = [
+            (self.base_url, {"group": group_id}, "group_only"),
+            (self.base_url, {"group": group_id, "date": today}, "group_with_date"),
+            (self._get_default_schedule_url(), {"group": group_id, "date": today}, "default_with_date"),
+            (self._get_default_schedule_url(), {"group": group_id}, "default_group_only"),
+        ]
+        return variants
 
     def _parse_group_page(self, group: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         group_id = group["group_id"]
-        html = self._fetch_html(params={"group": group_id})
-        group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name=group["name"])
+        html = ""
+        request_label = "group_only"
+        request_url = self.base_url
+        request_params = {"group": group_id}
+        response_url = self.base_url
+        for variant_url, variant_params, variant_label in self._build_group_request_variants(group_id):
+            marker_found = False
+            for marker_attempt in range(self.marker_retries + 1):
+                html, response_url = self._fetch_page(params=variant_params, base_url=variant_url)
+                if _html_has_schedule_markers(html):
+                    marker_found = True
+                    break
+
+                if marker_attempt < self.marker_retries:
+                    self._log_detailed_warning(
+                        f'Group "{group["name"]}" (id={group_id}): '
+                        f'no schedule markers on attempt {marker_attempt + 1}/{self.marker_retries + 1} '
+                        f'for variant={variant_label}, requested_url={variant_url}, '
+                        f'response_url={response_url}, params={variant_params}; retrying after '
+                        f'{self.marker_retry_delay_sec} sec'
+                    )
+                    if self.marker_retry_delay_sec > 0:
+                        time.sleep(self.marker_retry_delay_sec)
+            request_label = variant_label
+            request_url = variant_url
+            request_params = variant_params
+            if marker_found:
+                if variant_label != "group_only":
+                    self._log_detailed_info(
+                        f'Group "{group["name"]}" (id={group_id}): '
+                        f'schedule markers found via fallback {variant_label}; '
+                        f'response_url={response_url}'
+                    )
+                break
+
+            self._log_detailed_warning(
+                f'Group "{group["name"]}" (id={group_id}): no schedule markers for '
+                f'variant={variant_label}, requested_url={variant_url}, '
+                f'response_url={response_url}, params={variant_params}; {_html_debug_summary(html)}'
+            )
+
+        group_name, schedule, events = parse_group_schedule_html(
+            html=html,
+            fallback_group_name=group["name"],
+            detailed_logs_enabled=self.detailed_logs_enabled,
+        )
+        if not schedule:
+            self._log_detailed_warning(
+                f'Group "{group_name}" (id={group_id}) produced empty schedule after parsing; '
+                f'events={len(events)}; variant={request_label}, requested_url={request_url}, '
+                f'response_url={response_url}, '
+                f'params={request_params}; {_html_debug_summary(html)}'
+            )
         return {
             "group": group_name,
             "schedule": schedule,
@@ -580,12 +796,18 @@ class ISTUScheduleParser:
 
     def parse(self) -> Dict[str, List[Dict[str, Any]]]:
         logger.info("Start parsing ISTU schedule website...")
+        self._emit_progress("fetching_main_page")
 
         main_html = self._fetch_html()
         subdivisions = parse_subdivisions_html(main_html)
         groups = []
         if subdivisions:
             institutes = [{"name": subdivision["institute"]} for subdivision in subdivisions]
+            logger.info(f"ISTU parser: found {len(subdivisions)} subdivisions, loading group lists...")
+            self._emit_progress(
+                "fetching_subdivisions",
+                subdivisions_total=len(subdivisions),
+            )
             for subdivision in subdivisions:
                 subdivision_html = self._fetch_html(params={"subdiv": subdivision["subdiv_id"]})
                 groups.extend(parse_groups_html(subdivision_html, subdivision["institute"]))
@@ -606,6 +828,17 @@ class ISTUScheduleParser:
         if self.groups_limit > 0:
             groups = groups[:self.groups_limit]
 
+        logger.info(
+            f"ISTU parser: collected {len(groups)} groups from {len(institutes)} institutes. "
+            f"Starting parsing with {self.max_workers} workers..."
+        )
+        self._emit_progress(
+            "preparing_group_pages",
+            institutes_total=len(institutes),
+            total_groups=len(groups),
+            max_workers=self.max_workers,
+        )
+
         courses = []
         seen_courses = set()
         for group in groups:
@@ -621,6 +854,8 @@ class ISTUScheduleParser:
         group_docs = []
         all_events = []
         failed_groups = []
+        total_groups = len(groups)
+        progress_step = max(1, total_groups // DEFAULT_PROGRESS_UPDATES) if total_groups else 1
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
@@ -634,11 +869,21 @@ class ISTUScheduleParser:
                     group_docs.append(group_doc)
                     all_events.extend(events)
                 except Exception as error:
-                    failed_groups.append(group["name"])
-                    logger.warning(f"Failed to parse group {group['name']} (id={group['group_id']}): {error}")
+                    failed_groups.append(f"{group['name']} (id={group['group_id']})")
+                    self._log_detailed_warning(
+                        f"Failed to parse group {group['name']} (id={group['group_id']}): {error}"
+                    )
+
+                completed_groups = len(group_docs) + len(failed_groups)
+                if completed_groups == total_groups or completed_groups % progress_step == 0:
+                    self._log_group_progress(
+                        completed=completed_groups,
+                        total=total_groups,
+                        successful=len(group_docs),
+                        failed=len(failed_groups),
+                    )
 
         success_count = len(group_docs)
-        total_groups = len(groups)
         success_rate = success_count / total_groups if total_groups else 0
         if success_rate < self.min_success_rate:
             logger.warning(
@@ -648,7 +893,8 @@ class ISTUScheduleParser:
             )
 
         if failed_groups:
-            logger.warning(f"Failed groups count: {len(failed_groups)}")
+            preview = ", ".join(failed_groups[:10])
+            logger.warning(f"Failed groups count: {len(failed_groups)}. Examples: {preview}")
 
         group_docs_by_name = {group_doc["group"]: group_doc for group_doc in group_docs}
         for group in groups:
@@ -659,12 +905,38 @@ class ISTUScheduleParser:
                 "schedule": [],
             }
         group_docs = sorted(group_docs_by_name.values(), key=lambda item: item["group"])
+        empty_schedule_groups = [group_doc["group"] for group_doc in group_docs if not group_doc["schedule"]]
+        if empty_schedule_groups:
+            preview = ", ".join(empty_schedule_groups[:10])
+            logger.warning(
+                f"ISTU parser: empty schedules for {len(empty_schedule_groups)} groups. "
+                f"Examples: {preview}"
+            )
 
+        logger.info("ISTU parser: building derived teachers and auditories schedules...")
+        self._emit_progress(
+            "building_derived_schedules",
+            total_groups=total_groups,
+            successful_groups=success_count,
+            failed_groups=len(failed_groups),
+            empty_schedule_groups=len(empty_schedule_groups),
+        )
         teacher_docs, auditory_docs, prepods = build_teacher_and_auditory_schedules(all_events)
 
         logger.info(
             f"ISTU parsing completed: institutes={len(institutes)}, groups={len(groups)}, "
             f"group_schedules={len(group_docs)}, teachers={len(teacher_docs)}, auditories={len(auditory_docs)}"
+        )
+        self._emit_progress(
+            "completed",
+            institutes_total=len(institutes),
+            total_groups=len(groups),
+            successful_groups=success_count,
+            failed_groups=len(failed_groups),
+            empty_schedule_groups=len(empty_schedule_groups),
+            group_schedules=len(group_docs),
+            teacher_schedules=len(teacher_docs),
+            auditories_schedules=len(auditory_docs),
         )
 
         return {

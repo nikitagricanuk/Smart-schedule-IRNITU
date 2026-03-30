@@ -28,6 +28,8 @@ services:
       - PG_DB_PORT=5432
       - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website}
       - GETTING_SCHEDULE_TIME_HOURS=1
+      - ISTU_DETAILED_LOGS=${ISTU_DETAILED_LOGS:-0}
+      - ISTU_PROGRESS_LOGS=${ISTU_PROGRESS_LOGS:-1}
       - EXAMS_API=${EXAMS_API}
     logging:
       options:

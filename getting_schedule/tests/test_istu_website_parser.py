@@ -1,5 +1,6 @@
 import unittest
 
+from functions import schedule_tools
 from functions.istu_website_parser import (
     build_teacher_and_auditory_schedules,
     parse_group_schedule_html,
@@ -94,6 +95,35 @@ class TestIstuWebsiteParser(unittest.TestCase):
         self.assertEqual(aud_docs[0]["aud"], "Г-110б")
         self.assertEqual(len(prepods), 1)
         self.assertEqual(prepods[0]["prep"], "Волкова Е.В.")
+
+    def test_parse_group_schedule_html_supports_even_week_wrapper(self):
+        day_name = schedule_tools.DAYS[2]
+        html = f"""
+        <div class="full-even-week">
+          <h3 class="day-heading">{day_name}, 24 test </h3>
+          <div class="class-lines">
+            <div class="class-line-item">
+              <div class="class-tails">
+                <div class="class-time">18:45</div>
+                <div class="class-tail class-odd-week">
+                  <div class="class-info">lecture <a href="?prep=123">Ivanov I.I.</a></div>
+                  <div class="class-pred">Algorithms</div>
+                  <div class="class-info"><a href="?group=473784">AA-22-1</a></div>
+                  <div class="class-aud"><a href="?aud=200">B-201</a></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+
+        group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name="FALLBACK")
+        self.assertEqual(group_name, "FALLBACK")
+        self.assertEqual(len(schedule), 1)
+        self.assertEqual(schedule[0]["day"], day_name)
+        self.assertEqual(len(schedule[0]["lessons"]), 1)
+        self.assertEqual(schedule[0]["lessons"][0]["week"], "odd")
+        self.assertEqual(events[0]["name"], "Algorithms")
 
 
 if __name__ == "__main__":
