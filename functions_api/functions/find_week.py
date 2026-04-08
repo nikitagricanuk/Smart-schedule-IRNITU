@@ -19,6 +19,6 @@ def find_week():
     d2 = now - timedelta(days=now.weekday())
     parity = ((d2 - d1).days // 7) % 2
     if error:
-        return 'even' if parity else 'odd'
+        return 'odd' if parity else 'even'
 
-    return 'odd' if parity else 'even'
+    return 'even' if parity else 'odd'

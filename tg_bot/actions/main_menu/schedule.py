@@ -76,7 +76,7 @@ def get_schedule(bot, message, storage, tz):
         if data == 'На следующую неделю':
             week = 'odd' if week == 'even' else 'even'
 
-        week_name = 'четная' if week == 'odd' else 'нечетная'
+        week_name = 'нечетная' if week == 'odd' else 'четная'
 
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             schedule_str = full_schedule_in_str(schedule, week=week)

@@ -17,9 +17,9 @@ def getting_week_and_day_of_week(pg_lesson: dict) -> tuple:
         week = 'all'
     else:
         if pg_lesson['day'] <= 7:
-            week = 'even'
-        else:
             week = 'odd'
+        else:
+            week = 'even'
 
     return week, DAYS[day]
 
