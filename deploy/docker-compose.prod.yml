@@ -1,6 +1,29 @@
 services:
+  vpn:
+    image: linuxserver/wireguard:latest
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Irkutsk
+    volumes:
+      - ./vpn/config:/config
+      - /lib/modules:/lib/modules:ro
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+    restart: always
+
   tg_bot:
     image: ${IMAGE_REGISTRY}/tg_bot:${IMAGE_TAG}
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
     restart: always
     environment:
       - TG_TOKEN=${TG_TOKEN}
@@ -9,6 +32,21 @@ services:
       - MONGO_DB_DATABASE=Smart_schedule_IRNITU
       - FUNCTIONS_API_URL=http://functions_api/api/
       - EXAMS_API=${EXAMS_API}
+      - CALENDAR_PUBLIC_BASE_URL=${CALENDAR_PUBLIC_BASE_URL}
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+
+  calendar_service:
+    image: ${IMAGE_REGISTRY}/calendar_service:${IMAGE_TAG}
+    restart: always
+    ports:
+      - "${CALENDAR_SERVICE_PORT:-8090}:80"
+    environment:
+      - MONGO_DB_ADDR=mongodb
+      - MONGO_DB_PORT=27017
+      - MONGO_DB_DATABASE=Smart_schedule_IRNITU
     logging:
       options:
         max-size: "200M"
@@ -28,8 +66,6 @@ services:
       - PG_DB_PORT=5432
       - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website}
       - GETTING_SCHEDULE_TIME_HOURS=1
-      - ISTU_DETAILED_LOGS=${ISTU_DETAILED_LOGS:-0}
-      - ISTU_PROGRESS_LOGS=${ISTU_PROGRESS_LOGS:-1}
       - EXAMS_API=${EXAMS_API}
     logging:
       options:

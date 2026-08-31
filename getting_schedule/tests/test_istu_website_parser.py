@@ -13,8 +13,8 @@ class TestIstuWebsiteParser(unittest.TestCase):
     def test_parse_subdivisions_html(self):
         html = """
         <ul>
-          <li><a href="?subdiv=664">Аспирантура</a></li>
-          <li><a href="?subdiv=1">Институт авиамашиностроения и транспорта</a></li>
+          <li><a href="/raspisanie/podrazdelenie/664">Аспирантура</a></li>
+          <li><a href="/raspisanie/podrazdelenie/1">Институт авиамашиностроения и транспорта</a></li>
         </ul>
         """
 
@@ -27,19 +27,19 @@ class TestIstuWebsiteParser(unittest.TestCase):
 
     def test_parse_groups_html(self):
         html = """
-        <ul class="kurs-list">
-          <li>Курс 1
-            <ul>
-              <li><a href="?group=111">АА-25-1</a></li>
-              <li><a href="?group=112">АА-25-2</a></li>
-            </ul>
-          </li>
-          <li>Курс 2
-            <ul>
-              <li><a href="?group=221">ББ-24-1</a></li>
-            </ul>
-          </li>
-        </ul>
+        <div class="schd-kurs-block">
+          <div class="schd-kurs-nuber">1 курс</div>
+          <div class="schd-kurs-groups">
+            <div class="schd-grp-item"><a href="/raspisanie/grup/111">АА-25-1</a></div>
+            <div class="schd-grp-item"><a href="/raspisanie/grup/112">АА-25-2</a></div>
+          </div>
+        </div>
+        <div class="schd-kurs-block">
+          <div class="schd-kurs-nuber">2 курс</div>
+          <div class="schd-kurs-groups">
+            <div class="schd-grp-item"><a href="/raspisanie/grup/221">ББ-24-1</a></div>
+          </div>
+        </div>
         """
 
         result = parse_groups_html(html=html, institute="Тестовый институт")
@@ -52,22 +52,27 @@ class TestIstuWebsiteParser(unittest.TestCase):
 
     def test_parse_group_schedule_html_and_derived_collections(self):
         html = """
-        <div class="alert alert-info">
-          <p>группа: <b>АД-22-1</b></p>
-        </div>
-        <div class="full-odd-week">
-          <h3 class="day-heading">понедельник, 23 марта </h3>
-          <div class="class-lines">
-            <div class="class-line-item">
-              <div class="class-tails">
-                <div class="class-time">17:10</div>
-                <div class="class-tail class-even-week">
-                  <div class="class-info">практика <a href="?prep=947">Волкова Е.В.</a></div>
-                  <div class="class-pred">Реконструкция автомобильных дорог</div>
-                  <div class="class-info"><a href="?group=473784">АД-22-1</a></div>
-                  <div class="class-aud"><a href="?aud=354">Г-110б</a></div>
+        <h1>Группа АД-22-1</h1>
+        <div class="sch-list-week">
+          <div class="sch-list-day" data-params="{'date':'23.03.2026'}">
+            <h2 class="sch-list-day-header">понедельник, 23 марта</h2>
+            <div class="sch-list-item" data-params="{'time':'17:10'}">
+              <div class="sch-list-item-time"><div class="sch-list-item-time-inner">17:10</div></div>
+              <div class="sch-list-item-classes">
+                <div class="sch-list-item-week week-even">
+                  <div class="schcls-item schcls-card">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Реконструкция автомобильных дорог</div>
+                      <div class="schcls-item-distype type-2">практика</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/947/">Волкова Е.В.</a></div>
+                      <div class="schcls-item-group"><a href="/raspisanie/grup/473784/">АД-22-1</a></div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/354/">Г-110б</a></div>
+                  </div>
                 </div>
-                <div class="class-tail class-odd-week">свободно</div>
+                <div class="sch-list-item-week week-odd">
+                  <div class="schcls-item schcls-card schcls-empty">свободно</div>
+                </div>
               </div>
             </div>
           </div>
@@ -96,20 +101,29 @@ class TestIstuWebsiteParser(unittest.TestCase):
         self.assertEqual(len(prepods), 1)
         self.assertEqual(prepods[0]["prep"], "Волкова Е.В.")
 
-    def test_parse_group_schedule_html_supports_even_week_wrapper(self):
+    def test_parse_group_schedule_html_supports_week_all(self):
         day_name = schedule_tools.DAYS[2]
         html = f"""
-        <div class="full-even-week">
-          <h3 class="day-heading">{day_name}, 24 test </h3>
-          <div class="class-lines">
-            <div class="class-line-item">
-              <div class="class-tails">
-                <div class="class-time">18:45</div>
-                <div class="class-tail class-odd-week">
-                  <div class="class-info">lecture <a href="?prep=123">Ivanov I.I.</a></div>
-                  <div class="class-pred">Algorithms</div>
-                  <div class="class-info"><a href="?group=473784">AA-22-1</a></div>
-                  <div class="class-aud"><a href="?aud=200">B-201</a></div>
+        <h1>Группа AA-22-1</h1>
+        <div class="sch-list-week">
+          <div class="sch-list-day" data-params="{{'date':'24.03.2026'}}">
+            <h2 class="sch-list-day-header">{day_name}, 24 test</h2>
+            <div class="sch-list-item" data-params="{{'time':'18:45'}}">
+              <div class="sch-list-item-time"><div class="sch-list-item-time-inner">18:45</div></div>
+              <div class="sch-list-item-classes">
+                <div class="sch-list-item-week week-all">
+                  <div class="schcls-item schcls-card">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Algorithms</div>
+                      <div class="schcls-item-distype type-1">лекция</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/123/">Ivanov I.I.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/473784/">AA-22-1</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/200/">B-201</a></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -118,12 +132,61 @@ class TestIstuWebsiteParser(unittest.TestCase):
         """
 
         group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name="FALLBACK")
-        self.assertEqual(group_name, "FALLBACK")
+        self.assertEqual(group_name, "AA-22-1")
         self.assertEqual(len(schedule), 1)
         self.assertEqual(schedule[0]["day"], day_name)
         self.assertEqual(len(schedule[0]["lessons"]), 1)
-        self.assertEqual(schedule[0]["lessons"][0]["week"], "odd")
+        self.assertEqual(schedule[0]["lessons"][0]["week"], "all")
+        self.assertEqual(schedule[0]["lessons"][0]["info"], "( Лекция подгруппа 1 )")
         self.assertEqual(events[0]["name"], "Algorithms")
+
+    def test_parse_group_schedule_html_supports_multiple_subgroup_cards(self):
+        html = """
+        <h1>Группа СМ-23-1</h1>
+        <div class="sch-list-week">
+          <div class="sch-list-day" data-params="{'date':'21.09.2026'}">
+            <h2 class="sch-list-day-header">понедельник, 21 сентября</h2>
+            <div class="sch-list-item" data-params="{'time':'08:15'}">
+              <div class="sch-list-item-time"><div class="sch-list-item-time-inner">8:15</div></div>
+              <div class="sch-list-item-classes">
+                <div class="sch-list-item-week week-odd">
+                  <div class="schcls-item schcls-card">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Динамика полета самолета</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/1/">Кривель С.М.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478487/">СМ-23-1</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/337/">Д-013</a></div>
+                  </div>
+                  <div class="schcls-item schcls-card">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Силовая установка</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/2/">Исаев А.И.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478487/">СМ-23-1</a>
+                        подгруппа 2
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/903/">Д-104</a></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+
+        group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name="FALLBACK")
+        self.assertEqual(group_name, "СМ-23-1")
+        self.assertEqual(len(schedule[0]["lessons"]), 2)
+        self.assertEqual(len(events), 2)
+        subgroups = sorted(lesson["info"] for lesson in schedule[0]["lessons"])
+        self.assertEqual(subgroups, ["( Лаб. раб. подгруппа 1 )", "( Лаб. раб. подгруппа 2 )"])
 
 
 if __name__ == "__main__":

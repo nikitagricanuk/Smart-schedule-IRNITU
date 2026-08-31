@@ -1,8 +1,36 @@
 version: "3"
 
 services:
+  # WireGuard-клиент: весь сетевой трафик tg_bot (включая обращения к Telegram API)
+  # идёт через этот туннель, см. vpn/README.md для настройки конфига.
+  vpn:
+    image: linuxserver/wireguard:latest
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Irkutsk
+    volumes:
+      - ./vpn/config:/config
+      - /lib/modules:/lib/modules:ro
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+    restart: always
+
   tg_bot:
     build: tg_bot/
+    # Использует сетевой стек контейнера vpn, поэтому весь трафик бота (кроме
+    # обращений к mongodb/functions_api по docker-сети, у них более
+    # специфичный маршрут) идёт через WireGuard-туннель.
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
     logging:
       options:
         max-size: "200M"
@@ -15,6 +43,7 @@ services:
       - MONGO_DB_DATABASE=Smart_schedule_IRNITU # название базы данных
       - FUNCTIONS_API_URL=http://functions_api/api/
       - EXAMS_API=${EXAMS_API}
+      - CALENDAR_PUBLIC_BASE_URL=${CALENDAR_PUBLIC_BASE_URL} # публичный адрес calendar_service, см. .env.example
 
 #  vk_bot:
 #    build: vk_bot/
@@ -76,6 +105,19 @@ services:
         max-file: "4"
     restart: always
 
+  calendar_service:
+    build: calendar_service/
+    logging:
+      options:
+        max-size: "200M"
+        max-file: "4"
+    restart: always
+    ports:
+      - "${CALENDAR_SERVICE_PORT:-8090}:80" # публикуем наружу, чтобы календарные приложения могли забирать .ics по URL
+    environment:
+      - MONGO_DB_ADDR=mongodb # адрес mongoDB
+      - MONGO_DB_PORT=27017 # порт mongoDB
+      - MONGO_DB_DATABASE=Smart_schedule_IRNITU # название базы данных
 
   mongodb:
     image: mongo:latest

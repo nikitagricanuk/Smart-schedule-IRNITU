@@ -108,6 +108,14 @@ class MongodbService(object):
     def get_data(self, collection: str) -> list:
         return list(self._db[collection].find())
 
+    def record_schedule_changes(self, groups: list):
+        """Записывает факт изменения расписания групп для последующей рассылки уведомлений."""
+        if not groups:
+            return None
+        changed_at = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+        docs = [{'group': group, 'changed_at': changed_at, 'notified': False} for group in groups]
+        return self._db.schedule_changes.insert_many(docs)
+
     def save_hash(self, hash_name: str, value: str):
         """Сохраняет контрольную сумму коллекции."""
         status = {

@@ -38,7 +38,7 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Compose Build Check
-        run: docker compose build tg_bot getting_schedule functions_api
+        run: docker compose build tg_bot getting_schedule functions_api calendar_service
 
   build:
     name: Build & Push Images
@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [tg_bot, getting_schedule, functions_api]
+        service: [tg_bot, getting_schedule, functions_api, calendar_service]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -104,13 +104,36 @@ jobs:
             if [ -z "$DEPLOY_DIR" ]; then
               DEPLOY_DIR="$HOME/Smart-schedule-IRNITU"
             fi
-            mkdir -p "$DEPLOY_DIR/deploy"
+            mkdir -p "$DEPLOY_DIR/deploy" "$DEPLOY_DIR/vpn/config"
             cd "$DEPLOY_DIR"
 
             cat > deploy/docker-compose.prod.yml <<'YAML'
             services:
+              vpn:
+                image: linuxserver/wireguard:latest
+                cap_add:
+                  - NET_ADMIN
+                  - SYS_MODULE
+                environment:
+                  - PUID=1000
+                  - PGID=1000
+                  - TZ=Asia/Irkutsk
+                volumes:
+                  - ./vpn/config:/config
+                  - /lib/modules:/lib/modules:ro
+                sysctls:
+                  - net.ipv4.conf.all.src_valid_mark=1
+                logging:
+                  options:
+                    max-size: "200M"
+                    max-file: "4"
+                restart: always
+
               tg_bot:
                 image: ${IMAGE_REGISTRY}/tg_bot:${IMAGE_TAG}
+                network_mode: "service:vpn"
+                depends_on:
+                  - vpn
                 restart: always
                 environment:
                   - TG_TOKEN=${TG_TOKEN}
@@ -119,6 +142,21 @@ jobs:
                   - MONGO_DB_DATABASE=Smart_schedule_IRNITU
                   - FUNCTIONS_API_URL=http://functions_api/api/
                   - EXAMS_API=${EXAMS_API}
+                  - CALENDAR_PUBLIC_BASE_URL=${CALENDAR_PUBLIC_BASE_URL}
+                logging:
+                  options:
+                    max-size: "200M"
+                    max-file: "4"
+
+              calendar_service:
+                image: ${IMAGE_REGISTRY}/calendar_service:${IMAGE_TAG}
+                restart: always
+                ports:
+                  - "${CALENDAR_SERVICE_PORT:-8090}:80"
+                environment:
+                  - MONGO_DB_ADDR=mongodb
+                  - MONGO_DB_PORT=27017
+                  - MONGO_DB_DATABASE=Smart_schedule_IRNITU
                 logging:
                   options:
                     max-size: "200M"
@@ -183,6 +221,6 @@ jobs:
               echo "GHCR credentials are not set in Actions secrets, using existing server docker auth/public access."
             fi
 
-            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env pull tg_bot getting_schedule functions_api
-            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env up -d mongodb functions_api getting_schedule tg_bot
+            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env pull tg_bot getting_schedule functions_api calendar_service vpn
+            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env up -d mongodb functions_api calendar_service getting_schedule vpn tg_bot
             $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env ps
