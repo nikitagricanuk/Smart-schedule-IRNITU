@@ -1,20 +1,17 @@
-version: "3"
-
 services:
-  # WireGuard-клиент: весь сетевой трафик tg_bot (включая обращения к Telegram API)
-  # идёт через этот туннель, см. vpn/README.md для настройки конфига.
+  # AmneziaWG-клиент (userspace amneziawg-go, модуль ядра не нужен): весь сетевой
+  # трафик tg_bot, включая обращения к Telegram API, идёт через этот
+  # обфусцированный туннель. Конфиг — vpn/config/awg0.conf, см. vpn/README.md.
   vpn:
-    image: linuxserver/wireguard:latest
+    build: ./vpn
     cap_add:
       - NET_ADMIN
-      - SYS_MODULE
+    devices:
+      - /dev/net/tun
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=Asia/Irkutsk
     volumes:
-      - ./vpn/config:/config
-      - /lib/modules:/lib/modules:ro
+      - ./vpn/config:/config:ro
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
     logging:
@@ -113,11 +110,19 @@ services:
         max-file: "4"
     restart: always
     ports:
-      - "${CALENDAR_SERVICE_PORT:-8090}:80" # публикуем наружу, чтобы календарные приложения могли забирать .ics по URL
+      # Публикуем только на localhost — наружу отдаёт host nginx
+      # (schedule.nikitagricanuk.ru → 127.0.0.1:8091), см. deploy/nginx.schedule.conf
+      - "${CALENDAR_SERVICE_PORT:-127.0.0.1:8091}:80"
     environment:
       - MONGO_DB_ADDR=mongodb # адрес mongoDB
       - MONGO_DB_PORT=27017 # порт mongoDB
       - MONGO_DB_DATABASE=Smart_schedule_IRNITU # название базы данных
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:80/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   mongodb:
     image: mongo:latest
