@@ -6,21 +6,13 @@ on:
       - master
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-
 concurrency:
   group: cd-master
-  cancel-in-progress: true
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: smart-schedule-irnitu
+  cancel-in-progress: false
 
 jobs:
   quality:
-    name: Quality Gate
+    name: Quality gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,196 +23,67 @@ jobs:
         with:
           python-version: "3.8"
 
-      - name: Lint
+      - name: Lint (syntax errors only)
         run: |
           python -m pip install --upgrade pip
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Compose Build Check
-        run: docker compose build tg_bot getting_schedule functions_api calendar_service
-
-  build:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    needs: quality
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [tg_bot, getting_schedule, functions_api, calendar_service]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set lowercase owner
-        id: owner
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
-        with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ steps.owner.outputs.owner }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ steps.owner.outputs.owner }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:latest
+      - name: Validate compose file
+        run: docker compose -f docker-compose.yaml config --quiet
 
   deploy:
-    name: Deploy To FINSRV
+    name: Deploy to server
+    needs: quality
     runs-on: ubuntu-latest
-    needs: build
     environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set lowercase owner
-        id: owner
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy images
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          script_stop: true
-          script: |
-            set -euxo pipefail
+      # The server holds two files that are NOT in git and must survive the sync:
+      #   .env                  - real tokens / DB creds
+      #   vpn/config/awg0.conf  - AmneziaWG client config (keys)
+      - name: Sync repository to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.env' \
+            --exclude 'vpn/config/' \
+            --exclude 'data/' \
+            --exclude 'backup/' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=accept-new" \
+            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH:-Smart-schedule-IRNITU}/"
 
-            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
-            if [ -z "$DEPLOY_DIR" ]; then
-              DEPLOY_DIR="$HOME/Smart-schedule-IRNITU"
-            fi
-            mkdir -p "$DEPLOY_DIR/deploy" "$DEPLOY_DIR/vpn/config"
-            cd "$DEPLOY_DIR"
-
-            cat > deploy/docker-compose.prod.yml <<'YAML'
-            services:
-              vpn:
-                image: linuxserver/wireguard:latest
-                cap_add:
-                  - NET_ADMIN
-                  - SYS_MODULE
-                environment:
-                  - PUID=1000
-                  - PGID=1000
-                  - TZ=Asia/Irkutsk
-                volumes:
-                  - ./vpn/config:/config
-                  - /lib/modules:/lib/modules:ro
-                sysctls:
-                  - net.ipv4.conf.all.src_valid_mark=1
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-                restart: always
-
-              tg_bot:
-                image: ${IMAGE_REGISTRY}/tg_bot:${IMAGE_TAG}
-                network_mode: "service:vpn"
-                depends_on:
-                  - vpn
-                restart: always
-                environment:
-                  - TG_TOKEN=${TG_TOKEN}
-                  - MONGO_DB_ADDR=mongodb
-                  - MONGO_DB_PORT=27017
-                  - MONGO_DB_DATABASE=Smart_schedule_IRNITU
-                  - FUNCTIONS_API_URL=http://functions_api/api/
-                  - EXAMS_API=${EXAMS_API}
-                  - CALENDAR_PUBLIC_BASE_URL=${CALENDAR_PUBLIC_BASE_URL}
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-
-              calendar_service:
-                image: ${IMAGE_REGISTRY}/calendar_service:${IMAGE_TAG}
-                restart: always
-                ports:
-                  - "${CALENDAR_SERVICE_PORT:-8090}:80"
-                environment:
-                  - MONGO_DB_ADDR=mongodb
-                  - MONGO_DB_PORT=27017
-                  - MONGO_DB_DATABASE=Smart_schedule_IRNITU
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-
-              getting_schedule:
-                image: ${IMAGE_REGISTRY}/getting_schedule:${IMAGE_TAG}
-                restart: always
-                environment:
-                  - MONGO_DB_ADDR=mongodb
-                  - MONGO_DB_PORT=27017
-                  - MONGO_DB_DATABASE=Smart_schedule_IRNITU
-                  - PG_DB_DATABASE=${PG_DB_DATABASE}
-                  - PG_DB_USER=${PG_DB_USER}
-                  - PG_DB_PASSWORD=${PG_DB_PASSWORD}
-                  - PG_DB_HOST=${PG_DB_HOST}
-                  - PG_DB_PORT=5432
-                  - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website}
-                  - GETTING_SCHEDULE_TIME_HOURS=1
-                  - EXAMS_API=${EXAMS_API}
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-
-              functions_api:
-                image: ${IMAGE_REGISTRY}/functions_api:${IMAGE_TAG}
-                restart: always
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-
-              mongodb:
-                image: mongo:latest
-                restart: always
-                volumes:
-                  - mongo_data:/data/db
-                logging:
-                  options:
-                    max-size: "200M"
-                    max-file: "4"
-
-            volumes:
-              mongo_data:
-            YAML
-
-            cat > deploy/.deploy.env <<EOF
-            IMAGE_REGISTRY=${{ env.REGISTRY }}/${{ steps.owner.outputs.owner }}/${{ env.IMAGE_NAMESPACE }}
-            IMAGE_TAG=${{ github.sha }}
-            EOF
-
-            if command -v docker-compose >/dev/null 2>&1; then
-              COMPOSE="docker-compose"
-            else
-              COMPOSE="docker compose"
-            fi
-
-            if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_READ_TOKEN }}" ]; then
-              echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
-            else
-              echo "GHCR credentials are not set in Actions secrets, using existing server docker auth/public access."
-            fi
-
-            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env pull tg_bot getting_schedule functions_api calendar_service vpn
-            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env up -d mongodb functions_api calendar_service getting_schedule vpn tg_bot
-            $COMPOSE -f deploy/docker-compose.prod.yml --env-file .env --env-file deploy/.deploy.env ps
+      - name: Build images and restart stack
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=accept-new \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -eu; cd '${DEPLOY_PATH:-Smart-schedule-IRNITU}'; \
+             test -f .env || { echo 'missing .env on server'; exit 1; }; \
+             test -f vpn/config/awg0.conf || { echo 'missing vpn/config/awg0.conf on server'; exit 1; }; \
+             docker compose build; \
+             docker compose up -d --remove-orphans; \
+             docker compose ps"
