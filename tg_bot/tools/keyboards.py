@@ -215,10 +215,12 @@ def make_keyboard_extra():
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=False, resize_keyboard=True)
     btn1 = types.KeyboardButton('Помощь')
     btn2 = types.KeyboardButton('Напоминание 📣')
-    btn3 = types.KeyboardButton('Основное меню')
+    btn3 = types.KeyboardButton('Подписка на календарь 📅')
+    btn4 = types.KeyboardButton('Основное меню')
     markup.add(btn1)
     markup.add(btn2)
     markup.add(btn3)
+    markup.add(btn4)
     return markup
 
 

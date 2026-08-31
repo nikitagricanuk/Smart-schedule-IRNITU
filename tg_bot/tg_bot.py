@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 
 from actions import commands
-from actions.main_menu import main_menu, reminders, schedule
+from actions.main_menu import calendar_subscription, main_menu, reminders, schedule
 from actions.registration import student_registration, teacher_registration
 from actions.search.aud_search import (
     handler_buttons_aud,
@@ -171,6 +171,11 @@ async def message_router(message: types.Message):
             await run_sync(schedule.get_schedule, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
         elif text == 'Напоминание 📣':
             await run_sync(reminders.reminder_info, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
+        elif text == 'Подписка на календарь 📅':
+            await run_sync(
+                calendar_subscription.send_calendar_subscription,
+                bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK,
+            )
         elif text in content_main_menu_buttons:
             await run_sync(main_menu.processing_main_buttons, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
         else:
