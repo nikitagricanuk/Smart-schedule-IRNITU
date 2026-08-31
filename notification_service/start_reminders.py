@@ -6,6 +6,7 @@ from threading import Thread
 import vk_api
 
 from reminder import Reminder
+from schedule_change_notifier import ScheduleChangeNotifier
 from tools.aiogram_sync import SyncAiogramBot
 from tools.logger import logger
 from tools.reminder_updater import TGReminderUpdater, VKReminderUpdater
@@ -25,6 +26,7 @@ def build_workers():
         tg_reminder = Reminder(bot_platform='tg', bot=tg_bot)
         workers.append(Thread(target=tg_reminder.search_for_reminders, name='tg_reminder'))
         workers.append(Thread(target=TGReminderUpdater().start, name='tg_reminder_updater'))
+        workers.append(Thread(target=ScheduleChangeNotifier(bot=tg_bot).run, name='schedule_change_notifier'))
         resources.append(tg_bot)
     else:
         logger.warning('TG_TOKEN is not set, Telegram reminders are disabled')

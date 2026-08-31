@@ -72,6 +72,20 @@ class MongodbService(object):
         """возвращает расписание группы"""
         return self._db.schedule.find_one(filter={'group': group})
 
+    def get_pending_schedule_changes(self) -> list:
+        """возвращает необработанные записи об изменении расписания"""
+        return list(self._db.schedule_changes.find(filter={'notified': False}))
+
+    def mark_schedule_change_notified(self, change_id):
+        """помечает запись об изменении расписания как обработанную"""
+        return self._db.schedule_changes.update_one(
+            filter={'_id': change_id}, update={'$set': {'notified': True}}
+        )
+
+    def get_tg_users_for_group(self, group: str) -> list:
+        """возвращает telegram-пользователей, зарегистрированных на группу"""
+        return list(self._db.users.find(filter={'group': group}))
+
     def save_status_tg(self, date, time):
         """сохраняем время последнего парса"""
         status = {
