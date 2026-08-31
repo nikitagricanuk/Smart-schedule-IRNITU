@@ -2,19 +2,19 @@ import os
 import re
 import time
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import local
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Tag
 
 from functions import schedule_tools
 from functions.logger import logger
 
 
-DEFAULT_BASE_URL = "https://www.istu.edu/schedule/"
+DEFAULT_BASE_URL = "https://www.istu.edu/raspisanie/"
 DEFAULT_TIMEOUT_SEC = 20
 DEFAULT_RETRIES = 2
 DEFAULT_MAX_WORKERS = 8
@@ -37,8 +37,8 @@ def _normalize_spaces(value: str) -> str:
     return " ".join(value.split()) if value else ""
 
 
-def _parse_query_int(href: str, key: str) -> Optional[int]:
-    match = re.search(r"[?&]" + re.escape(key) + r"=(\d+)", href or "")
+def _parse_path_int(href: str, segment: str) -> Optional[int]:
+    match = re.search(r"/" + re.escape(segment) + r"/(\d+)", href or "")
     if not match:
         return None
     return int(match.group(1))
@@ -63,11 +63,11 @@ def _normalize_course_name(raw_course: str) -> str:
 
 def _normalize_week(classes: List[str]) -> Optional[str]:
     classes_set = set(classes or [])
-    if "class-all-week" in classes_set:
+    if "week-all" in classes_set:
         return "all"
-    if "class-even-week" in classes_set:
+    if "week-even" in classes_set:
         return "even"
-    if "class-odd-week" in classes_set:
+    if "week-odd" in classes_set:
         return "odd"
     return None
 
@@ -95,9 +95,9 @@ def parse_subdivisions_html(html: str) -> List[Dict[str, Any]]:
     subdivisions = []
     seen_subdiv_ids = set()
 
-    for anchor in soup.select('a[href*="subdiv="]'):
+    for anchor in soup.select('a[href*="/podrazdelenie/"]'):
         href = anchor.get("href", "")
-        subdiv_id = _parse_query_int(href, "subdiv")
+        subdiv_id = _parse_path_int(href, "podrazdelenie")
         if subdiv_id is None or subdiv_id in seen_subdiv_ids:
             continue
 
@@ -119,28 +119,19 @@ def parse_groups_html(html: str, institute: str) -> List[Dict[str, Any]]:
     result = []
     seen_group_ids = set()
 
-    kurs_list = soup.find("ul", class_="kurs-list")
-    if kurs_list:
-        # ISTU markup can have malformed nested <li>; walk token order and keep current course state.
-        current_course = "1 курс"
-        for node in kurs_list.descendants:
-            if isinstance(node, NavigableString):
-                text = str(node)
-                for course_match in re.finditer(r"Курс\s*(\d+)", text, flags=re.IGNORECASE):
-                    current_course = _normalize_course_name(course_match.group(0))
-                continue
+    for course_block in soup.find_all("div", class_="schd-kurs-block"):
+        course_tag = course_block.find("div", class_="schd-kurs-nuber")
+        course_name = _normalize_course_name(
+            course_tag.get_text(" ", strip=True) if course_tag else ""
+        )
 
-            if not isinstance(node, Tag) or node.name != "a":
-                continue
-            href = node.get("href", "")
-            if "group=" not in href:
-                continue
-
-            group_id = _parse_query_int(href, "group")
+        for anchor in course_block.select('.schd-kurs-groups a[href*="/grup/"]'):
+            href = anchor.get("href", "")
+            group_id = _parse_path_int(href, "grup")
             if group_id is None or group_id in seen_group_ids:
                 continue
 
-            group_name = _normalize_spaces(node.get_text(" ", strip=True))
+            group_name = _normalize_spaces(anchor.get_text(" ", strip=True))
             if not group_name:
                 continue
 
@@ -148,7 +139,7 @@ def parse_groups_html(html: str, institute: str) -> List[Dict[str, Any]]:
             result.append({
                 "group_id": group_id,
                 "name": group_name,
-                "course": current_course,
+                "course": course_name,
                 "institute": institute,
             })
 
@@ -156,9 +147,9 @@ def parse_groups_html(html: str, institute: str) -> List[Dict[str, Any]]:
         return result
 
     # Fallback: parse all group links when course wrappers are absent.
-    for anchor in soup.select('a[href*="group="]'):
+    for anchor in soup.select('a[href*="/grup/"]'):
         href = anchor.get("href", "")
-        group_id = _parse_query_int(href, "group")
+        group_id = _parse_path_int(href, "grup")
         if group_id is None or group_id in seen_group_ids:
             continue
 
@@ -178,50 +169,31 @@ def parse_groups_html(html: str, institute: str) -> List[Dict[str, Any]]:
 
 
 def _extract_group_name(soup: BeautifulSoup, fallback_group_name: str) -> str:
-    for paragraph in soup.select("div.alert-info p"):
-        text = _normalize_spaces(paragraph.get_text(" ", strip=True)).lower()
-        if "группа:" not in text:
-            continue
-
-        bold = paragraph.find("b")
-        if bold:
-            group_name = _normalize_spaces(bold.get_text(" ", strip=True))
+    heading = soup.find("h1")
+    if heading:
+        text = _normalize_spaces(heading.get_text(" ", strip=True))
+        match = re.match(r"(?:группа|group)\s*[:\-]?\s*(.+)", text, flags=re.IGNORECASE)
+        if match:
+            group_name = match.group(1).strip()
             if group_name:
                 return group_name
 
     return fallback_group_name
 
 
-def _extract_lesson_type_and_preps(first_info: Tag) -> Tuple[str, List[str]]:
-    lesson_type_parts = []
+def _extract_preps(prepod_tag: Optional[Tag]) -> List[Tuple[Optional[int], str]]:
     preps = []
+    if not prepod_tag:
+        return preps
 
-    for node in first_info.contents:
-        if isinstance(node, NavigableString):
-            lesson_type_parts.append(str(node))
-
-    for prep_link in first_info.find_all("a", href=True):
+    for prep_link in prepod_tag.find_all("a", href=True):
         prep_name = _normalize_spaces(prep_link.get_text(" ", strip=True))
         if not prep_name:
             continue
-        prep_id = _parse_query_int(prep_link["href"], "prep")
+        prep_id = _parse_path_int(prep_link["href"], "prepodavatel")
         preps.append((prep_id, prep_name))
 
-    lesson_type = _normalize_spaces(" ".join(lesson_type_parts))
-    return lesson_type, _unique_preserve_order(
-        [f"{prep_id}:{prep_name}" for prep_id, prep_name in preps]
-    )
-
-
-def _decode_preps(encoded_preps: List[str]) -> List[Tuple[Optional[int], str]]:
-    result = []
-    for item in encoded_preps:
-        if ":" not in item:
-            continue
-        prep_id_str, prep_name = item.split(":", 1)
-        prep_id = int(prep_id_str) if prep_id_str.isdigit() else None
-        result.append((prep_id, prep_name))
-    return result
+    return preps
 
 
 def _sort_day_lessons(lessons: List[Dict[str, Any]]) -> None:
@@ -250,26 +222,25 @@ def _merge_group_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any
 
 
 def _find_schedule_container(soup: BeautifulSoup) -> Optional[Tag]:
-    schedule_container = soup.select_one("div.full-odd-week, div.full-even-week")
+    schedule_container = soup.select_one("div.sch-list-week")
     if schedule_container:
         return schedule_container
 
-    day_heading = soup.select_one("h3.day-heading")
-    if day_heading and isinstance(day_heading.parent, Tag):
-        return day_heading.parent
+    main_content = soup.select_one("main.page-content")
+    if main_content:
+        return main_content
 
-    return None
+    return soup
 
 
 def _html_debug_summary(html: str) -> str:
     html_lower = html.lower()
     markers = {
-        "full_odd_week": 'full-odd-week' in html_lower,
-        "full_even_week": 'full-even-week' in html_lower,
-        "class_all_week": 'class-all-week' in html_lower,
-        "class_even_week": 'class-even-week' in html_lower,
-        "class_odd_week": 'class-odd-week' in html_lower,
-        "day_heading": 'day-heading' in html_lower,
+        "sch_list_day": 'sch-list-day' in html_lower,
+        "sch_list_item": 'sch-list-item' in html_lower,
+        "schcls_item": 'schcls-item' in html_lower,
+        "week_even": 'week-even' in html_lower,
+        "week_odd": 'week-odd' in html_lower,
     }
     soup = BeautifulSoup(html, "html.parser")
     title = _normalize_spaces(soup.title.get_text(" ", strip=True)) if soup.title else ""
@@ -284,12 +255,9 @@ def _html_has_schedule_markers(html: str) -> bool:
     return any(
         marker in html_lower
         for marker in (
-            "full-odd-week",
-            "full-even-week",
-            "class-all-week",
-            "class-even-week",
-            "class-odd-week",
-            "day-heading",
+            "sch-list-day",
+            "sch-list-item",
+            "schcls-item",
         )
     )
 
@@ -316,11 +284,12 @@ def parse_group_schedule_html(
     valid_days = set(schedule_tools.DAYS.values())
     day_heading_candidates = 0
     valid_day_headings = 0
-    recognized_week_tails = 0
+    recognized_week_blocks = 0
 
-    for day_heading in schedule_container.find_all("h3", class_="day-heading"):
+    for day_block in schedule_container.find_all("div", class_="sch-list-day"):
         day_heading_candidates += 1
-        day_heading_text = _normalize_spaces(day_heading.get_text(" ", strip=True))
+        day_heading = day_block.find(class_="sch-list-day-header")
+        day_heading_text = _normalize_spaces(day_heading.get_text(" ", strip=True)) if day_heading else ""
         if "," not in day_heading_text:
             continue
 
@@ -329,122 +298,115 @@ def parse_group_schedule_html(
             continue
         valid_day_headings += 1
 
-        class_lines = day_heading.find_next_sibling("div", class_="class-lines")
-        if not class_lines:
-            continue
-
         if day_name not in day_to_lessons:
             day_to_lessons[day_name] = []
 
-        for class_line in class_lines.find_all("div", class_="class-line-item", recursive=False):
-            class_tails = class_line.find("div", class_="class-tails")
-            if not class_tails:
-                continue
-
-            class_time_tag = class_tails.find("div", class_="class-time")
-            if not class_time_tag:
-                continue
-            class_time = _normalize_spaces(class_time_tag.get_text(" ", strip=True))
+        for schedule_item in day_block.find_all("div", class_="sch-list-item", recursive=False):
+            time_tag = schedule_item.select_one(".sch-list-item-time-inner")
+            class_time = _normalize_spaces(time_tag.get_text(" ", strip=True)) if time_tag else ""
             if not class_time:
                 continue
 
-            for tail in class_tails.find_all("div", class_="class-tail", recursive=False):
-                week = _normalize_week(tail.get("class", []))
+            classes_container = schedule_item.find("div", class_="sch-list-item-classes")
+            if not classes_container:
+                continue
+
+            for week_block in classes_container.find_all("div", class_="sch-list-item-week", recursive=False):
+                week = _normalize_week(week_block.get("class", []))
                 if not week:
                     continue
-                recognized_week_tails += 1
+                recognized_week_blocks += 1
 
-                tail_text = _normalize_spaces(tail.get_text(" ", strip=True)).lower()
-                if "свободно" in tail_text:
-                    _merge_group_lesson(
-                        day_to_lessons[day_name],
-                        {
-                            "time": class_time,
-                            "week": week,
-                            "name": "свободно",
-                            "aud": [""],
-                            "info": "",
-                            "prep": [""],
-                        },
-                    )
-                    continue
+                for card in week_block.find_all("div", class_="schcls-item", recursive=False):
+                    if "schcls-empty" in card.get("class", []):
+                        _merge_group_lesson(
+                            day_to_lessons[day_name],
+                            {
+                                "time": class_time,
+                                "week": week,
+                                "name": "свободно",
+                                "aud": [""],
+                                "info": "",
+                                "prep": [""],
+                            },
+                        )
+                        continue
 
-                class_pred = tail.find("div", class_="class-pred")
-                lesson_name = _normalize_spaces(class_pred.get_text(" ", strip=True)) if class_pred else ""
-                if not lesson_name:
-                    continue
+                    info = card.find("div", class_="schcls-item-info")
+                    if not info:
+                        continue
 
-                info_blocks = tail.find_all("div", class_="class-info", recursive=False)
-                first_info = info_blocks[0] if info_blocks else None
-                second_info = info_blocks[1] if len(info_blocks) > 1 else None
+                    name_tag = info.find("div", class_="schcls-item-name")
+                    lesson_name = _normalize_spaces(name_tag.get_text(" ", strip=True)) if name_tag else ""
+                    if not lesson_name:
+                        continue
 
-                lesson_type = ""
-                prep_meta: List[Tuple[Optional[int], str]] = []
-                if first_info:
-                    lesson_type, encoded_preps = _extract_lesson_type_and_preps(first_info)
-                    prep_meta = _decode_preps(encoded_preps)
+                    distype_tag = info.find("div", class_="schcls-item-distype")
+                    lesson_type = _normalize_spaces(distype_tag.get_text(" ", strip=True)) if distype_tag else ""
 
-                groups = []
-                subgroup = None
-                if second_info:
-                    groups = [
-                        _normalize_spaces(group_link.get_text(" ", strip=True))
-                        for group_link in second_info.find_all("a", href=True)
-                        if _normalize_spaces(group_link.get_text(" ", strip=True))
-                    ]
-                    second_info_text = _normalize_spaces(second_info.get_text(" ", strip=True))
-                    subgroup_match = re.search(r"подгруппа\s*(\d+)", second_info_text, flags=re.IGNORECASE)
-                    if subgroup_match:
-                        subgroup = subgroup_match.group(1)
+                    prepod_tag = info.find("div", class_="schcls-item-prepod")
+                    prep_meta = _extract_preps(prepod_tag)
 
-                if not groups and group_name:
-                    groups = [group_name]
-
-                class_aud = tail.find("div", class_="class-aud")
-                auditories = []
-                if class_aud:
-                    aud_links = class_aud.find_all("a", href=True)
-                    if aud_links:
-                        auditories = [
-                            _normalize_spaces(aud_link.get_text(" ", strip=True))
-                            for aud_link in aud_links
-                            if _normalize_spaces(aud_link.get_text(" ", strip=True))
+                    group_tag = info.find("div", class_="schcls-item-group")
+                    groups = []
+                    subgroup = None
+                    if group_tag:
+                        groups = [
+                            _normalize_spaces(group_link.get_text(" ", strip=True))
+                            for group_link in group_tag.find_all("a", href=True)
+                            if _normalize_spaces(group_link.get_text(" ", strip=True))
                         ]
-                    else:
-                        aud_text = _normalize_spaces(class_aud.get_text(" ", strip=True))
-                        if aud_text:
-                            if aud_text.lower() == "онлайн":
-                                aud_text = "онлайн"
-                            auditories = [aud_text]
-                if not auditories:
-                    auditories = [""]
+                        group_text = _normalize_spaces(group_tag.get_text(" ", strip=True))
+                        subgroup_match = re.search(r"подгруппа\s*(\d+)", group_text, flags=re.IGNORECASE)
+                        if subgroup_match:
+                            subgroup = subgroup_match.group(1)
 
-                prep_names = [prep_name for _, prep_name in prep_meta if prep_name]
-                if not prep_names:
-                    prep_names = [""]
+                    if not groups and group_name:
+                        groups = [group_name]
 
-                lesson_info = _build_info(lesson_type, subgroup)
-                group_lesson = {
-                    "time": class_time,
-                    "week": week,
-                    "name": lesson_name,
-                    "aud": auditories,
-                    "info": lesson_info,
-                    "prep": prep_names,
-                }
-                _merge_group_lesson(day_to_lessons[day_name], group_lesson)
+                    aud_tag = card.find("div", class_="schcls-item-aud")
+                    auditories = []
+                    if aud_tag:
+                        aud_links = aud_tag.find_all("a", href=True)
+                        if aud_links:
+                            auditories = [
+                                _normalize_spaces(aud_link.get_text(" ", strip=True))
+                                for aud_link in aud_links
+                                if _normalize_spaces(aud_link.get_text(" ", strip=True))
+                            ]
+                        else:
+                            aud_text = _normalize_spaces(aud_tag.get_text(" ", strip=True))
+                            if aud_text:
+                                auditories = [aud_text]
+                    if not auditories:
+                        auditories = [""]
 
-                events.append({
-                    "day": day_name,
-                    "time": class_time,
-                    "week": week,
-                    "name": lesson_name,
-                    "info": lesson_info,
-                    "aud": auditories,
-                    "groups": groups,
-                    "prep_meta": prep_meta,
-                    "prep_names": prep_names,
-                })
+                    prep_names = [prep_name for _, prep_name in prep_meta if prep_name]
+                    if not prep_names:
+                        prep_names = [""]
+
+                    lesson_info = _build_info(lesson_type, subgroup)
+                    group_lesson = {
+                        "time": class_time,
+                        "week": week,
+                        "name": lesson_name,
+                        "aud": auditories,
+                        "info": lesson_info,
+                        "prep": prep_names,
+                    }
+                    _merge_group_lesson(day_to_lessons[day_name], group_lesson)
+
+                    events.append({
+                        "day": day_name,
+                        "time": class_time,
+                        "week": week,
+                        "name": lesson_name,
+                        "info": lesson_info,
+                        "aud": auditories,
+                        "groups": groups,
+                        "prep_meta": prep_meta,
+                        "prep_names": prep_names,
+                    })
 
     schedule = []
     for day_name, lessons in day_to_lessons.items():
@@ -457,11 +419,11 @@ def parse_group_schedule_html(
 
     if not schedule:
         if day_heading_candidates == 0:
-            empty_reason = "no day headings inside schedule container"
+            empty_reason = "no day blocks inside schedule container"
         elif valid_day_headings == 0:
             empty_reason = "no valid weekday headings recognized"
-        elif recognized_week_tails == 0:
-            empty_reason = "no lesson tails with supported week markers found"
+        elif recognized_week_blocks == 0:
+            empty_reason = "no lesson slots with supported week markers found"
         else:
             empty_reason = "page parsed but zero lessons were extracted"
         if detailed_logs_enabled:
@@ -721,16 +683,22 @@ class ISTUScheduleParser:
         html, _ = self._fetch_page(params=params, base_url=base_url)
         return html
 
-    def _get_default_schedule_url(self) -> str:
-        return self.base_url.rstrip("/") + "/default"
+    def _group_schedule_url(self, group_id: int, day_offset: Optional[int] = None) -> str:
+        url = f"{self.base_url.rstrip('/')}/grup/{group_id}"
+        if day_offset is not None:
+            target_date = datetime.now() + timedelta(days=day_offset)
+            url += "/" + target_date.strftime("%d.%m.%Y")
+        return url
 
     def _build_group_request_variants(self, group_id: int) -> List[Tuple[str, Dict[str, Any], str]]:
-        today = datetime.now().strftime("%Y-%m-%d")
+        # ISTU renders the schedule per calendar week and only includes weekdays that
+        # actually have lessons, so a week near a semester break can come back empty.
+        # Probe a few weeks around "today" until one has data.
         variants = [
-            (self.base_url, {"group": group_id}, "group_only"),
-            (self.base_url, {"group": group_id, "date": today}, "group_with_date"),
-            (self._get_default_schedule_url(), {"group": group_id, "date": today}, "default_with_date"),
-            (self._get_default_schedule_url(), {"group": group_id}, "default_group_only"),
+            (self._group_schedule_url(group_id), {}, "current_week"),
+            (self._group_schedule_url(group_id, day_offset=7), {}, "next_week"),
+            (self._group_schedule_url(group_id, day_offset=-7), {}, "previous_week"),
+            (self._group_schedule_url(group_id, day_offset=14), {}, "two_weeks_ahead"),
         ]
         return variants
 
@@ -809,7 +777,8 @@ class ISTUScheduleParser:
                 subdivisions_total=len(subdivisions),
             )
             for subdivision in subdivisions:
-                subdivision_html = self._fetch_html(params={"subdiv": subdivision["subdiv_id"]})
+                subdivision_url = f"{self.base_url.rstrip('/')}/podrazdelenie/{subdivision['subdiv_id']}"
+                subdivision_html = self._fetch_html(base_url=subdivision_url)
                 groups.extend(parse_groups_html(subdivision_html, subdivision["institute"]))
         else:
             logger.warning("No subdivisions found on ISTU main page. Trying fallback parsing from main page.")
