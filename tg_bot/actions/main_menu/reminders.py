@@ -6,37 +6,43 @@ from tools import keyboards, statistics, schedule_processing
 from tools.logger import logger
 
 
-def reminder_info(bot, message, storage, tz):
+async def reminder_info(bot, message, storage, tz):
     chat_id = message.chat.id
-    user = storage.get_user(chat_id=chat_id)
+    user = await storage.get_user(chat_id=chat_id)
+    if not user:
+        await bot.send_message(chat_id=chat_id, text='Сначала пройдите регистрацию с помощью команды /start')
+        return
 
     time = user['notifications']
     if not time:
         time = 0
 
     # Проверяем статус напоминания
-    notifications_status = get_notifications_status(time)
+    notifications_status = await get_notifications_status(time)
     if isinstance(notifications_status, APIError):
-        schedule_processing.sending_service_is_not_available(bot, chat_id)
+        await schedule_processing.sending_service_is_not_available(bot, chat_id)
         return
 
     if user:
-        bot.send_message(chat_id=chat_id, text=notifications_status,
-                         reply_markup=keyboards.make_inline_keyboard_notifications(time))
+        await bot.send_message(
+            chat_id=chat_id,
+            text=notifications_status,
+            reply_markup=keyboards.make_inline_keyboard_notifications(time),
+        )
 
-        statistics.add(action='Напоминания', storage=storage, tz=tz)
+        await statistics.add(action='Напоминания', storage=storage, tz=tz)
 
 
-def reminder_settings(bot, message, storage, tz):
-    chat_id = message.message.chat.id
-    message_id = message.message.message_id
-    data = message.data
+async def reminder_settings(bot, callback, storage, tz):
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    data = callback.data
 
     if 'notification_btn' in data:
         data = json.loads(data)
         if data['notification_btn'] == 'close':
             try:
-                bot.delete_message(message_id=message_id, chat_id=chat_id)
+                await bot.delete_message(message_id=message_id, chat_id=chat_id)
                 return
             except Exception as e:
                 logger.exception(e)
@@ -44,16 +50,19 @@ def reminder_settings(bot, message, storage, tz):
         time = data['notification_btn']
 
         # Проверяем статус напоминания
-        notifications_status = get_notifications_status(time)
+        notifications_status = await get_notifications_status(time)
         if isinstance(notifications_status, APIError):
-            schedule_processing.sending_service_is_not_available(bot, chat_id)
+            await schedule_processing.sending_service_is_not_available(bot, chat_id)
             return
 
         try:
-            bot.edit_message_text(message_id=message_id, chat_id=chat_id,
-                                  text='Настройка напоминаний ⚙\n\n'
-                                       'Укажите за сколько минут до начала пары должно приходить сообщение',
-                                  reply_markup=keyboards.make_inline_keyboard_set_notifications(time))
+            await bot.edit_message_text(
+                message_id=message_id,
+                chat_id=chat_id,
+                text='Настройка напоминаний ⚙\n\n'
+                'Укажите за сколько минут до начала пары должно приходить сообщение',
+                reply_markup=keyboards.make_inline_keyboard_set_notifications(time),
+            )
         except Exception as e:
             logger.exception(e)
             return
@@ -69,14 +78,17 @@ def reminder_settings(bot, message, storage, tz):
             time = 0
 
         # Проверяем статус напоминания
-        notifications_status = get_notifications_status(time)
+        notifications_status = await get_notifications_status(time)
         if isinstance(notifications_status, APIError):
-            schedule_processing.sending_service_is_not_available(bot, chat_id)
+            await schedule_processing.sending_service_is_not_available(bot, chat_id)
             return
 
         try:
-            bot.edit_message_reply_markup(message_id=message_id, chat_id=chat_id,
-                                          reply_markup=keyboards.make_inline_keyboard_set_notifications(time))
+            await bot.edit_message_reply_markup(
+                message_id=message_id,
+                chat_id=chat_id,
+                reply_markup=keyboards.make_inline_keyboard_set_notifications(time),
+            )
         except Exception as e:
             logger.exception(e)
             return
@@ -87,14 +99,17 @@ def reminder_settings(bot, message, storage, tz):
         time += 5
 
         # Проверяем статус напоминания
-        notifications_status = get_notifications_status(time)
+        notifications_status = await get_notifications_status(time)
         if isinstance(notifications_status, APIError):
-            schedule_processing.sending_service_is_not_available(bot, chat_id)
+            await schedule_processing.sending_service_is_not_available(bot, chat_id)
             return
 
         try:
-            bot.edit_message_reply_markup(message_id=message_id, chat_id=chat_id,
-                                          reply_markup=keyboards.make_inline_keyboard_set_notifications(time))
+            await bot.edit_message_reply_markup(
+                message_id=message_id,
+                chat_id=chat_id,
+                reply_markup=keyboards.make_inline_keyboard_set_notifications(time),
+            )
         except Exception as e:
             logger.exception(e)
             return
@@ -104,29 +119,35 @@ def reminder_settings(bot, message, storage, tz):
         time = data['save_notifications']
 
         # Проверяем статус напоминания
-        notifications_status = get_notifications_status(time)
+        notifications_status = await get_notifications_status(time)
         if isinstance(notifications_status, APIError):
-            schedule_processing.sending_service_is_not_available(bot, chat_id)
+            await schedule_processing.sending_service_is_not_available(bot, chat_id)
             return
 
-        group = storage.get_user(chat_id=chat_id)['group']
+        user = await storage.get_user(chat_id=chat_id)
+        group = user['group']
 
-        if storage.get_user(chat_id=chat_id)['course'] == 'None':
-            schedule = storage.get_schedule_prep(group=group)['schedule']
+        if user['course'] == 'None':
+            schedule = (await storage.get_schedule_prep(group=group))['schedule']
         else:
-            schedule = storage.get_schedule(group=group)['schedule']
+            schedule = (await storage.get_schedule(group=group))['schedule']
 
         if time > 0:
-            reminders = calculating_reminder_times(schedule=schedule, time=int(time))
+            reminders = await calculating_reminder_times(schedule=schedule, time=int(time))
         else:
             reminders = []
-        storage.save_or_update_user(chat_id=chat_id, notifications=time, reminders=reminders)
+        await storage.save_or_update_user(chat_id=chat_id, notifications=time, reminders=reminders)
 
         try:
-            bot.edit_message_text(message_id=message_id, chat_id=chat_id, text=get_notifications_status(time),
-                                  reply_markup=keyboards.make_inline_keyboard_notifications(time))
+            current_status = await get_notifications_status(time)
+            await bot.edit_message_text(
+                message_id=message_id,
+                chat_id=chat_id,
+                text=current_status,
+                reply_markup=keyboards.make_inline_keyboard_notifications(time),
+            )
         except Exception as e:
             logger.exception(e)
             return
 
-        statistics.add(action='save_notifications', storage=storage, tz=tz)
+        await statistics.add(action='save_notifications', storage=storage, tz=tz)

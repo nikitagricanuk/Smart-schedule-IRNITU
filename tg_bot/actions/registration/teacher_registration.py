@@ -1,147 +1,185 @@
 import json
+
 from tools import keyboards
 
+WAITING_TEACHER_NAME = set()
 
-def start_prep_reg(bot, message, storage):
-    """Вхождение в стейт регистрации преподавателей"""
 
-    chat_id = message.message.chat.id
-    message_id = message.message.message_id
-    data = message.data
+def _parse_teacher_callback(data):
+    if data == 'inst:teacher':
+        return 'Преподаватель'
+    if data and data.startswith('inst:'):
+        return data.split(':', 1)[1]
 
-    # После того как пользователь выбрал институт
-    if 'institute' in data:
-        data = json.loads(data)
+    try:
+        payload = json.loads(data)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
-        storage.save_or_update_user(chat_id=chat_id,
-                                    institute=data['institute'],
-                                    course='None')  # Записываем в базу институт пользователя
+    return payload.get('institute')
 
-        # Выводим сообщение со списком курсов
-        bot.send_message(chat_id, text='📚Кто постигает новое, лелея старое,\n'
-                                       'Тот может быть учителем.\n'
-                                       'Конфуций')
 
-        msg = bot.send_message(chat_id, text='Введите своё ФИО полностью.\n'
-                                             'Например: Корняков Михаил Викторович')
-        bot.register_next_step_handler(msg, reg_prep_step_2, bot, storage)
-        bot.delete_message(message_id=message_id, chat_id=chat_id)
-
+async def start_prep_reg(bot, callback, storage):
+    """Вхождение в регистрацию преподавателей."""
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    institute = _parse_teacher_callback(callback.data)
+    if not institute:
         return
 
+    if institute != 'Преподаватель':
+        institute_doc = await storage.get_institute_by_id(institute)
+        if institute_doc:
+            institute = institute_doc.get('name')
 
-def reg_prep_step_2(message, bot, storage, last_msg=None):
-    """Регистрация преподавателя"""
+    await storage.save_or_update_user(
+        chat_id=chat_id,
+        institute=institute,
+        course='None',
+    )
 
+    await bot.send_message(
+        chat_id,
+        text='📚Кто постигает новое, лелея старое,\nТот может быть учителем.\nКонфуций',
+    )
+    await bot.send_message(chat_id, text='Введите своё ФИО полностью.\nНапример: Корняков Михаил Викторович')
+    try:
+        await bot.delete_message(message_id=message_id, chat_id=chat_id)
+    except Exception:
+        pass
+    WAITING_TEACHER_NAME.add(chat_id)
+
+
+async def process_teacher_name_input(bot, message, storage) -> bool:
     chat_id = message.chat.id
-    message = message.text
-    user = storage.get_user(chat_id)
+    if chat_id not in WAITING_TEACHER_NAME:
+        return False
 
+    user = await storage.get_user(chat_id)
     if not user:
-        return
+        WAITING_TEACHER_NAME.discard(chat_id)
+        return True
 
-    if last_msg:
-        message_id = last_msg.message_id
-        bot.delete_message(message_id=message_id, chat_id=chat_id)
-
-    prep_list = storage.get_prep(message)
+    incoming_text = (message.text or '').strip()
+    prep_list = await storage.get_prep(incoming_text)
     if prep_list:
         prep_name = prep_list[0]['prep']
-        storage.save_or_update_user(chat_id=chat_id, group=prep_name)
-        bot.send_message(chat_id, text=f'Вы успешно зарегистрировались, как {prep_name}!😊\n\n'
-                                       'Для того чтобы пройти регистрацию повторно, напишите сообщение "Регистрация"\n',
-                         reply_markup=keyboards.make_keyboard_start_menu())
+        await storage.save_or_update_user(chat_id=chat_id, group=prep_name)
+        await bot.send_message(
+            chat_id,
+            text=f'Вы успешно зарегистрировались, как {prep_name}!😊\n\n'
+            'Для того чтобы пройти регистрацию повторно, напишите сообщение "Регистрация"\n',
+            reply_markup=keyboards.make_keyboard_start_menu(),
+        )
+        WAITING_TEACHER_NAME.discard(chat_id)
+        return True
+
+    content_commands = {'Начать', 'начать', 'Начало', 'start', '/start', 'Регистрация', '/reg'}
+    if incoming_text in content_commands:
+        institutes = await storage.get_institutes()
+        if not institutes:
+            await bot.send_message(
+                chat_id=chat_id,
+                text='Расписание и списки групп еще загружаются ⏳\nПопробуйте снова через 1-2 минуты.',
+            )
+            WAITING_TEACHER_NAME.discard(chat_id)
+            return True
+        await bot.send_message(
+            chat_id=chat_id,
+            text='Выберите институт',
+            reply_markup=keyboards.make_inline_keyboard_choose_institute(institutes),
+        )
+        WAITING_TEACHER_NAME.discard(chat_id)
+        return True
+
+    prep_list_exact = []
+    prep_and_id_list = []
+    matches_by_word = {}
+    for name_unit in incoming_text.split():
+        per_word = await storage.get_register_list_prep(name_unit)
+        current_word_matches = set()
+        for prep in per_word:
+            prep_and_id_list.append(prep)
+            prep_list_exact.append(prep['prep'])
+            current_word_matches.add(prep['prep'])
+        matches_by_word[name_unit] = list(current_word_matches)
+
+    prep_list_2 = []
+    for values in matches_by_word.values():
+        if values and prep_list_2:
+            prep_list_2 = list(set(values) & set(prep_list_2))
+        elif values and not prep_list_2:
+            prep_list_2 = values
+
+    if not prep_list_2 and incoming_text.split():
+        surname = incoming_text.split()[0]
+        prep_list_2 = matches_by_word.get(surname, [])
+
+    if len(prep_list_2) > 20:
+        prep_list_2 = prep_list_2[:20]
+
+    sort_prep = [item for item in prep_and_id_list if item['prep'] in prep_list_2]
+    if sort_prep:
+        await bot.send_message(
+            chat_id=chat_id,
+            text='Возможно вы имелли в виду:',
+            reply_markup=keyboards.make_inline_keyboard_reg_prep(sort_prep),
+        )
+        return True
+
+    await bot.send_message(chat_id=chat_id, text='Проверьте правильность ввода 😞')
+    return True
+
+
+async def reg_prep_choose_from_list(bot, callback, storage):
+    chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
+    data = json.loads(callback.data)
+
+    WAITING_TEACHER_NAME.discard(chat_id)
+
+    if data['prep_id'] == 'back':
+        institutes = await storage.get_institutes()
+        if not institutes:
+            await bot.send_message(
+                chat_id=chat_id,
+                text='Расписание и списки групп еще загружаются ⏳\nПопробуйте снова через 1-2 минуты.',
+            )
+            await storage.delete_user_or_userdata(chat_id)
+            return
+        await bot.send_message(
+            chat_id=chat_id,
+            text='Выберите институт',
+            reply_markup=keyboards.make_inline_keyboard_choose_institute(institutes),
+        )
+        await storage.delete_user_or_userdata(chat_id)
         return
 
-    elif not prep_list:
-        # Делим введенное фио на части и ищем по каждой в базе
-        prep_list = []
-        prep_list_2 = []
-        prep_and_id_list = []
-        content_commands = ['Начать', 'начать', 'Начало', 'start', '/start', 'Регистрация', '/reg']
-        matches_by_word = {}
+    prep_doc = await storage.get_prep_for_id(data['prep_id'])
+    if not prep_doc:
+        await bot.send_message(chat_id=chat_id, text='Преподаватель не найден. Попробуйте снова.')
+        return
 
-        # Делим полученное ФИО на отдельные слова, на выходе имеем второй список с уникальными значениями по запросу
-        for name_unit in message.split():
-            # Ищем в базе преподов по каждому слову
-            for i in storage.get_register_list_prep(name_unit):
-                prep_and_id_list.append(i)
-                prep_list.append(i['prep'])
-            matches_by_word[name_unit] = list(set(prep_list))
-            # Если 2 списка не пустых, ищем элементы, которые повторяются максимальное количество раз
-            if prep_list and prep_list_2:
-                prep_list_2 = list(set(prep_list) & set(prep_list_2))
-            # Если второй список пуст (еще остались слова из запроса, по которым не сходили в базу)
-            elif prep_list and not prep_list_2:
-                prep_list_2 = prep_list
-            prep_list = []
-
-        # На сайте ИРНИТУ преподаватели часто хранятся как "Фамилия И.О.".
-        # Для запроса вида "Фамилия Имя Отчество" оставляем fallback по фамилии.
-        if not prep_list_2 and message.split():
-            surname = message.split()[0]
-            prep_list_2 = matches_by_word.get(surname, [])
-
-        # Ограничивает размер клавы до 20 преподов
-        if len(prep_list_2) > 20:
-            prep_list_2 = prep_list_2[:20]
-        # Создается сортированный список со словарями из коллекции prepods_schedule
-        sort_prep = []
-        # Если ФИО преподаывателя содержится в prep_list_2, то записываем его словарь (из коллекции prepods_schedule)
-        # в новый список sort_prep
-        for i in range(len(prep_and_id_list)):
-            if prep_and_id_list[i]['prep'] in prep_list_2:
-                sort_prep.append(prep_and_id_list[i])
-        # Если sort_prep не пустой, выдаем клавиатуру с возможными вариантами
-        if sort_prep:
-            # Сообщение на которое пользователь отвечает (сохраняет сообщение, введенное пользователем,
-            # после фразы 'Возможно вы имелли в виду:')
-            msg = bot.send_message(chat_id=chat_id, text=f'Возможно вы имелли в виду:',
-                                   reply_markup=keyboards.make_inline_keyboard_reg_prep(sort_prep))
-            bot.register_next_step_handler(msg, reg_prep_step_2, bot, storage, last_msg=msg)
-        # Если sort_prep пустой и сообщение содержит в себе попытку перерегистрации
-        elif message in content_commands:
-            bot.send_message(chat_id=chat_id, text='Выберите институт',
-                             reply_markup=keyboards.make_inline_keyboard_choose_institute(storage.get_institutes()))
-            return
-        # Если sort_prep пустой, то выводим ошибку
-        else:
-            msg = bot.send_message(chat_id=chat_id, text='Проверьте правильность ввода 😞')
-            bot.register_next_step_handler(msg, reg_prep_step_2, bot, storage)
-    return
-
-
-def reg_prep_choose_from_list(bot, message, storage):
-    """Обрабатываем колбэк преподавателя"""
-
-    chat_id = message.message.chat.id
-    message_id = message.message.message_id
-    data = json.loads(message.data)
-
-    # Выходим из цикла поиска преподавателя по ФИО
-    bot.clear_step_handler_by_chat_id(chat_id=chat_id)
-
-    # Назад к институтам
-    if data['prep_id'] == 'back':
-        bot.send_message(chat_id=chat_id, text='Выберите институт',
-                         reply_markup=keyboards.make_inline_keyboard_choose_institute(storage.get_institutes()))
-        storage.delete_user_or_userdata(chat_id)
-    # Регистрируем преподавателя по выбранной кнопке
-    else:
-        prep_name = storage.get_prep_for_id(data['prep_id'])['prep']
-        storage.save_or_update_user(chat_id=chat_id, group=prep_name)
-        bot.delete_message(message_id=message_id, chat_id=chat_id)
-        bot.send_message(chat_id, text=f'Приветствую Вас, Пользователь! Вы успешно зарегистрировались, как {prep_name}!😊\n\n'
-                                       "Я чат-бот для просмотра расписания занятий в Иркутском Политехе.🤖\n\n"
-                                        "С помощью меня можно не только смотреть свое расписание на день или неделю, но и осуществлять поиск расписания по группам, аудиториям и преподавателям (кнопка [Поиск]).\n"
-                                        "А еще можно настроить уведомления о парах (в разделе [Другое] кнопка [Напоминания]).\n\n"
-                                        "Следующие советы помогут раскрыть мой функционал на 💯 процентов:\n"
-                                        "⏭Используйте кнопки, так я буду Вас лучше понимать!\n\n"
-                                        "🌄Подгружайте расписание утром и оно будет в нашем чате до скончания времен!\n\n"
-                                        "📃Чтобы просмотреть список доступных команд и кнопок, напишите в чате [Помощь]\n\n"
-                                        "🆘Чтобы вызвать эту подсказку снова, напиши в чат [Подсказка] \n\n"
-                                        "Надеюсь, что Вам будет удобно меня использовать. Для того чтобы пройти регистрацию повторно, напишите сообщение [Регистрация]\n\n"
-                                        "Если Вы столкнетесь с технической проблемой, то Вы можете:\n"
-                                        "- обратиться за помощью в официальную группу ВКонтакте [https://vk.com/smartschedule]\n"
-                                        "- написать одному из моих создателей (команда Авторы)🤭\n",
-                         reply_markup=keyboards.make_keyboard_start_menu())
+    prep_name = prep_doc['prep']
+    await storage.save_or_update_user(chat_id=chat_id, group=prep_name)
+    try:
+        await bot.delete_message(message_id=message_id, chat_id=chat_id)
+    except Exception:
+        pass
+    await bot.send_message(
+        chat_id,
+        text=f'Приветствую Вас, Пользователь! Вы успешно зарегистрировались, как {prep_name}!😊\n\n'
+        "Я чат-бот для просмотра расписания занятий в Иркутском Политехе.🤖\n\n"
+        "С помощью меня можно не только смотреть свое расписание на день или неделю, но и осуществлять поиск расписания по группам, аудиториям и преподавателям (кнопка [Поиск]).\n"
+        "А еще можно настроить уведомления о парах (в разделе [Другое] кнопка [Напоминания]).\n\n"
+        "Следующие советы помогут раскрыть мой функционал на 💯 процентов:\n"
+        "⏭Используйте кнопки, так я буду Вас лучше понимать!\n\n"
+        "🌄Подгружайте расписание утром и оно будет в нашем чате до скончания времен!\n\n"
+        "📃Чтобы просмотреть список доступных команд и кнопок, напишите в чате [Помощь]\n\n"
+        "🆘Чтобы вызвать эту подсказку снова, напиши в чат [Подсказка] \n\n"
+        "Надеюсь, что Вам будет удобно меня использовать. Для того чтобы пройти регистрацию повторно, напишите сообщение [Регистрация]\n\n"
+        "Если Вы столкнетесь с технической проблемой, то Вы можете:\n"
+        "- обратиться за помощью в официальную группу ВКонтакте [https://vk.com/smartschedule]\n"
+        "- написать одному из моих создателей (команда Авторы)🤭\n",
+        reply_markup=keyboards.make_keyboard_start_menu(),
+    )

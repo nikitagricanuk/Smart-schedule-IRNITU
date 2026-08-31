@@ -1,6 +1,9 @@
 import os
 import re
-from pymongo import MongoClient
+
+from bson import ObjectId
+from bson.errors import InvalidId
+from motor.motor_asyncio import AsyncIOMotorClient
 
 MONGO_DB_ADDR = os.environ.get('MONGO_DB_ADDR')
 MONGO_DB_PORT = os.environ.get('MONGO_DB_PORT')
@@ -20,105 +23,117 @@ class MongodbService(object):
         return cls._instance
 
     def __init__(self):
-        self._client = MongoClient(f'mongodb://{MONGO_DB_ADDR}:{MONGO_DB_PORT}')
+        self._client = AsyncIOMotorClient(f'mongodb://{MONGO_DB_ADDR}:{MONGO_DB_PORT}')
         self._db = self._client[MONGO_DB_DATABASE]
 
-    def get_data(self, collection) -> list:
-        """возвращает список документов из указанной коллекции"""
-        return list(self._db[collection].find())
-
-    def save_data(self, collection, data: dict):
-        """сохраняет документ в указанную коллекцию"""
-        return self._db[collection].insert_one(data)
-
-    def save_institutes(self, institutes: list):
-        """сохраняет список институтов в коллекцию institutes"""
-        return self._db.institutes.insert_many(institutes)
-
-    def save_courses(self, courses: list):
-        """сохраняет список курсов в коллекцию courses"""
-        return self._db.courses.insert_many(courses)
-
-    def save_groups(self, groups: list):
-        """сохраняет список групп в коллекцию groups"""
-        return self._db.groups.insert_many(groups)
-
-    def get_institutes(self) -> list:
-        """возвращает список институтов"""
-        return list(self._db.institutes.find())
-
-    def get_register_list_prep(self, search_words: str) -> list:
-        """возвращает список преподавателей по слову из поиска"""
-        return list(self._db.prepods_schedule.find(
-            filter={'prep': {'$regex': f"(^{search_words}\s.*)|(.*\s{search_words}\s.*)|(.*\s{search_words}$)",
-                             "$options": 'i'}}))
-
-    def get_search_list(self, search_words: str) -> list:
-        """возвращает список групп по слову из поиска"""
-        search_words = "".join(
-            x for x in search_words if x.isalpha() or x.isdigit() or x.isspace() or x == '.' or x == '-')
-        if not search_words:
+    @staticmethod
+    def _to_object_id(value):
+        if value is None:
             return None
-        return list(self._db.groups.find(filter={'name': {'$regex': f'.*{search_words}.*', "$options": 'i'}}))
-
-    def get_search_list_prep(self, search_words: str) -> list:
-        """возвращает список преподавателей по слову из поиска"""
-        search_words = "".join(
-            x for x in search_words if x.isalpha() or x.isdigit() or x.isspace() or x == '.' or x == '-')
-        if not search_words:
+        try:
+            return ObjectId(str(value))
+        except (InvalidId, TypeError, ValueError):
             return None
-        return list(self._db.prepods_schedule.find(
-            filter={'prep_short_name': {'$regex': f'.*{search_words}.*', "$options": 'i'}}))
 
-    def get_prep(self, surname: str) -> list:
-        """возвращает список ФИО всех преподавателей"""
-        return list(self._db.prepods.find(filter={'prep': {'$regex': f'^{surname}$', "$options": 'i'}}))
+    async def get_data(self, collection) -> list:
+        return await self._db[collection].find().to_list(length=None)
 
-    def get_prep_for_id(self, prep_id: int):
-        return self._db.prepods_schedule.find_one(filter={'pg_id': prep_id})
+    async def save_data(self, collection, data: dict):
+        return await self._db[collection].insert_one(data)
 
-    def get_courses(self, institute='') -> list:
-        """возвращает список курсов у определённого института"""
+    async def save_institutes(self, institutes: list):
+        return await self._db.institutes.insert_many(institutes)
+
+    async def save_courses(self, courses: list):
+        return await self._db.courses.insert_many(courses)
+
+    async def save_groups(self, groups: list):
+        return await self._db.groups.insert_many(groups)
+
+    async def get_institutes(self) -> list:
+        return await self._db.institutes.find().to_list(length=None)
+
+    async def get_institute_by_id(self, institute_id):
+        object_id = self._to_object_id(institute_id)
+        if object_id is None:
+            return None
+        return await self._db.institutes.find_one(filter={'_id': object_id})
+
+    async def get_search_list(self, search_words: str) -> list:
+        search_words = "".join(
+            x for x in search_words if x.isalpha() or x.isdigit() or x.isspace() or x == '.' or x == '-'
+        )
+        if not search_words:
+            return []
+        return await self._db.groups.find(
+            filter={'name': {'$regex': f'.*{search_words}.*', "$options": 'i'}}
+        ).to_list(length=None)
+
+    async def get_search_list_prep(self, search_words: str) -> list:
+        search_words = "".join(
+            x for x in search_words if x.isalpha() or x.isdigit() or x.isspace() or x == '.' or x == '-'
+        )
+        if not search_words:
+            return []
+        return await self._db.prepods_schedule.find(
+            filter={'prep_short_name': {'$regex': f'.*{search_words}.*', "$options": 'i'}}
+        ).to_list(length=None)
+
+    async def get_prep(self, surname: str) -> list:
+        return await self._db.prepods.find(
+            filter={'prep': {'$regex': f'^{surname}$', "$options": 'i'}}
+        ).to_list(length=None)
+
+    async def get_prep_for_id(self, prep_id: int):
+        return await self._db.prepods_schedule.find_one(filter={'pg_id': prep_id})
+
+    async def get_courses(self, institute='') -> list:
         if not institute:
             return []
         institute_prefix = re.escape(institute.strip())
-        return list(self._db.courses.find(
+        return await self._db.courses.find(
             filter={'institute': {'$regex': f'^{institute_prefix}', '$options': 'i'}}
-        ))
+        ).to_list(length=None)
 
-    def get_groups(self, institute: str, course: str) -> list:
-        """возвращает список групп на определённом курсе в определеннои институте"""
+    async def get_course_by_id(self, course_id):
+        object_id = self._to_object_id(course_id)
+        if object_id is None:
+            return None
+        return await self._db.courses.find_one(filter={'_id': object_id})
+
+    async def get_groups(self, institute: str, course: str) -> list:
         if not institute or not course:
             return []
         institute_prefix = re.escape(institute.strip())
-        return list(self._db.groups.find(
+        return await self._db.groups.find(
             filter={'institute': {'$regex': f'^{institute_prefix}', '$options': 'i'}, 'course': course}
-        ))
+        ).to_list(length=None)
 
-    # Поиск по ФИО преподавателя или его части
-    def get_register_list_prep(self, search_words: str) -> list:
-        """возвращает список преподавателей по слову из поиска"""
-        return list(self._db.prepods_schedule.find(
-            filter={'prep': {'$regex': f"(^{search_words}\s.*)|(.*\s{search_words}\s.*)|(.*\s{search_words}$)",
-                             "$options": 'i'}}))
+    async def get_group_by_id(self, group_id):
+        object_id = self._to_object_id(group_id)
+        if object_id is None:
+            return None
+        return await self._db.groups.find_one(filter={'_id': object_id})
 
-    def get_prep(self, surname: str) -> list:
-        """возвращает список ФИО всех преподавателей"""
-        return list(self._db.prepods.find(filter={'prep': {'$regex': f'^{surname}$', "$options": 'i'}}))
+    async def get_register_list_prep(self, search_words: str) -> list:
+        return await self._db.prepods_schedule.find(
+            filter={'prep': {'$regex': f"(^{search_words}\\s.*)|(.*\\s{search_words}\\s.*)|(.*\\s{search_words}$)",
+                             "$options": 'i'}}
+        ).to_list(length=None)
 
-    def get_schedule_aud(self, aud: str) -> list:
-        """возвращает расписание преподавателя"""
+    async def get_schedule_aud(self, aud: str) -> list:
         aud = "".join(x for x in aud if x.isalpha() or x.isdigit() or x.isspace() or x == '.' or x == '-')
         if not aud:
             return []
-        return list(self._db.auditories_schedule.find(filter={'aud': {'$regex': f'.*{aud}.*', "$options": 'i'}}))
+        return await self._db.auditories_schedule.find(
+            filter={'aud': {'$regex': f'.*{aud}.*', "$options": 'i'}}
+        ).to_list(length=None)
 
-    def get_schedule_prep(self, group):
-        """возвращает расписание преподавателя"""
-        return self._db.prepods_schedule.find_one(filter={'prep': group})
+    async def get_schedule_prep(self, group):
+        return await self._db.prepods_schedule.find_one(filter={'prep': group})
 
-    def save_or_update_user(self, chat_id: int, institute='', course='', group='', notifications=0, reminders=[]):
-        """сохраняет или изменяет данные пользователя (коллекция users)"""
+    async def save_or_update_user(self, chat_id: int, institute='', course='', group='', notifications=0, reminders=None):
+        reminders = reminders or []
         update = {'chat_id': chat_id, 'notifications': 0, 'reminders': {}}
         if institute:
             update['institute'] = institute
@@ -130,36 +145,27 @@ class MongodbService(object):
             update['notifications'] = notifications
         if reminders:
             update['reminders'] = reminders
+        return await self._db.users.update_one(filter={'chat_id': chat_id}, update={'$set': update}, upsert=True)
 
-        return self._db.users.update_one(filter={'chat_id': chat_id}, update={'$set': update}, upsert=True)
+    async def get_user(self, chat_id: int):
+        return await self._db.users.find_one(filter={'chat_id': chat_id})
 
-    def get_user(self, chat_id: int):
-        return self._db.users.find_one(filter={'chat_id': chat_id})
-
-    def delete_user_or_userdata(self, chat_id: int, delete_only_course: bool = False):
-        """удаление пользователя или курса пользователя из базы данных"""
+    async def delete_user_or_userdata(self, chat_id: int, delete_only_course: bool = False):
         if delete_only_course:
-            return self._db.users.update_one(filter={'chat_id': chat_id}, update={'$unset': {'course': ''}},
-                                             upsert=True)
-        return self._db.users.delete_one(filter={'chat_id': chat_id})
+            return await self._db.users.update_one(
+                filter={'chat_id': chat_id}, update={'$unset': {'course': ''}}, upsert=True
+            )
+        return await self._db.users.delete_one(filter={'chat_id': chat_id})
 
-    def get_schedule(self, group):
-        """возвращает расписание группы"""
-        return self._db.schedule.find_one(filter={'group': group})
+    async def get_schedule(self, group):
+        return await self._db.schedule.find_one(filter={'group': group})
 
-    def save_statistics(self, action: str, date: str, time: str):
-        statistics = {
-            'action': action,
-            'date': date,
-            'time': time
-        }
-        return self._db.tg_statistics.insert_one(statistics)
+    async def save_statistics(self, action: str, date: str, time: str):
+        statistics = {'action': action, 'date': date, 'time': time}
+        return await self._db.tg_statistics.insert_one(statistics)
 
+    async def get_schedule_exam(self, group):
+        return await self._db.exams_schedule.find_one(filter={'group': group})
 
-    def get_schedule_exam(self, group):
-        """возвращает расписание экзаменов"""
-        return self._db.exams_schedule.find_one(filter={'group': group})
-
-    def get_users_for_script(self):
-        """Вытаскиваем всех пользвателей из базы"""
-        return self._db.users.find({})
+    async def get_users_for_script(self):
+        return await self._db.users.find({}).to_list(length=None)
