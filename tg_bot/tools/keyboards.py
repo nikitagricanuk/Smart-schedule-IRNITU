@@ -95,6 +95,21 @@ def make_inline_keyboard_reg_prep(preps=[]):
     return markup
 
 
+SUBGROUP_OPTIONS = [(0, 'Вся группа'), (1, 'Подгруппа 1'), (2, 'Подгруппа 2'), (3, 'Подгруппа 3')]
+
+
+def make_inline_keyboard_choose_subgroup(current=0, during_registration=False):
+    """Кнопки выбора подгруппы (для календаря). current — текущее значение, помечается галочкой."""
+    markup = types.InlineKeyboardMarkup()
+    for value, label in SUBGROUP_OPTIONS:
+        text = f'✓ {label}' if value == current else label
+        payload = {'subgroup': value}
+        if during_registration:
+            payload['reg'] = 1
+        markup.add(types.InlineKeyboardButton(text=text, callback_data=json.dumps(payload)))
+    return markup
+
+
 def make_inline_keyboard_notifications(time=0):
     """Кнопка 'Настройка уведомлений'"""
     markup = types.InlineKeyboardMarkup()
@@ -216,11 +231,13 @@ def make_keyboard_extra():
     btn1 = types.KeyboardButton('Помощь')
     btn2 = types.KeyboardButton('Напоминание 📣')
     btn3 = types.KeyboardButton('Подписка на календарь 📅')
-    btn4 = types.KeyboardButton('Основное меню')
+    btn4 = types.KeyboardButton('Подгруппа 👥')
+    btn5 = types.KeyboardButton('Основное меню')
     markup.add(btn1)
     markup.add(btn2)
     markup.add(btn3)
     markup.add(btn4)
+    markup.add(btn5)
     return markup
 
 

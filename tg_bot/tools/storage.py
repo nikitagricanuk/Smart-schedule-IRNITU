@@ -118,7 +118,8 @@ class MongodbService(object):
         """возвращает расписание преподавателя"""
         return self._db.prepods_schedule.find_one(filter={'prep': group})
 
-    def save_or_update_user(self, chat_id: int, institute='', course='', group='', notifications=0, reminders=[]):
+    def save_or_update_user(self, chat_id: int, institute='', course='', group='', notifications=0, reminders=[],
+                            subgroup=None):
         """сохраняет или изменяет данные пользователя (коллекция users)"""
         update = {'chat_id': chat_id, 'notifications': 0, 'reminders': {}}
         if institute:
@@ -131,8 +132,15 @@ class MongodbService(object):
             update['notifications'] = notifications
         if reminders:
             update['reminders'] = reminders
+        if subgroup is not None:
+            update['subgroup'] = int(subgroup)
 
         return self._db.users.update_one(filter={'chat_id': chat_id}, update={'$set': update}, upsert=True)
+
+    def set_subgroup(self, chat_id: int, subgroup: int):
+        """сохраняет выбранную подгруппу пользователя (0 — вся группа, 1/2/3 — подгруппа)"""
+        return self._db.users.update_one(filter={'chat_id': chat_id},
+                                         update={'$set': {'subgroup': int(subgroup)}}, upsert=True)
 
     def get_user(self, chat_id: int):
         return self._db.users.find_one(filter={'chat_id': chat_id})

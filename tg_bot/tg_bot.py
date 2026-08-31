@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 
 from actions import commands
-from actions.main_menu import calendar_subscription, main_menu, reminders, schedule
+from actions.main_menu import calendar_subscription, main_menu, reminders, schedule, subgroup_settings
 from actions.registration import student_registration, teacher_registration
 from actions.search.aud_search import (
     handler_buttons_aud,
@@ -176,6 +176,11 @@ async def message_router(message: types.Message):
                 calendar_subscription.send_calendar_subscription,
                 bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK,
             )
+        elif text == 'Подгруппа 👥':
+            await run_sync(
+                subgroup_settings.choose_subgroup,
+                bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK,
+            )
         elif text in content_main_menu_buttons:
             await run_sync(main_menu.processing_main_buttons, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
         else:
@@ -196,7 +201,10 @@ async def callback_router(callback_query: types.CallbackQuery):
         pass
 
     try:
-        if any(word in data for word in content_students_registration):
+        if 'subgroup' in data:
+            await run_sync(subgroup_settings.handle_subgroup_callback,
+                           bot=bot, message=callback_query, storage=storage, tz=TZ_IRKUTSK)
+        elif any(word in data for word in content_students_registration):
             await run_sync(handle_registration_callback, callback_query)
         elif 'prep_id' in data:
             await run_sync(teacher_registration.reg_prep_choose_from_list, bot=bot, message=callback_query, storage=storage)

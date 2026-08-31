@@ -1,4 +1,5 @@
 import hashlib
+import re
 from datetime import datetime, timedelta
 
 import pytz
@@ -9,10 +10,20 @@ TZ_IRKUTSK = pytz.timezone('Asia/Irkutsk')
 DAY_ORDER = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье']
 LESSON_DURATION_MINUTES = 90
 
+_SUBGROUP_RE = re.compile(r'подгруппа\s*(\d+)', re.IGNORECASE)
+
+
+def _lesson_subgroup(lesson: dict) -> int:
+    """Номер подгруппы из поля info ('( Лаб. раб. подгруппа 2 )'), 0 — для всей группы."""
+    match = _SUBGROUP_RE.search(lesson.get('info') or '')
+    return int(match.group(1)) if match else 0
+
 
 def _academic_year_start(now=None):
     now = now or datetime.now(TZ_IRKUTSK)
-    year = now.year if now.month >= 9 else now.year - 1
+    # Август уже относим к новому учебному году: иначе в конце августа подписка
+    # якорится на прошлый сентябрь и весь год занятий оказывается в прошлом.
+    year = now.year if now.month >= 8 else now.year - 1
     return TZ_IRKUTSK.localize(datetime(year, 9, 1))
 
 
@@ -23,9 +34,10 @@ def week0_monday(now=None):
     return sep - timedelta(days=sep.weekday())
 
 
-def _recurrence_end(monday):
+def _recurrence_end(now=None):
     """Конец учебного года с запасом, чтобы подписка не накапливала лишние повторения."""
-    return TZ_IRKUTSK.localize(datetime(monday.year + 1, 8, 31, 23, 59, 59))
+    sep = _academic_year_start(now)
+    return TZ_IRKUTSK.localize(datetime(sep.year + 1, 8, 31, 23, 59, 59))
 
 
 def _first_occurrence_date(monday, day_name: str, week: str):
@@ -42,7 +54,7 @@ def _stable_uid(*parts) -> str:
     return hashlib.sha1(raw.encode('utf-8')).hexdigest() + '@smart-schedule-irnitu'
 
 
-def _build_event(day_name: str, lesson: dict, monday) -> "Event | None":
+def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -> "Event | None":
     name = lesson.get('name')
     week = lesson.get('week')
     time_str = lesson.get('time')
@@ -57,6 +69,16 @@ def _build_event(day_name: str, lesson: dict, monday) -> "Event | None":
 
     first_date = _first_occurrence_date(monday, day_name, 'odd' if week == 'all' else week)
     if first_date is None:
+        return None
+
+    interval = 1 if week == 'all' else 2
+    # Не тащим в подписку прошедшие занятия: сдвигаем первое повторение вперёд
+    # целыми шагами (шаг = период повторения, поэтому чётность недели не
+    # ломается) до недели, в которой мы сейчас находимся.
+    step = timedelta(days=7 * interval)
+    while first_date < week_start:
+        first_date += step
+    if first_date.date() > horizon_end.date():
         return None
 
     dtstart_local = TZ_IRKUTSK.localize(
@@ -86,11 +108,10 @@ def _build_event(day_name: str, lesson: dict, monday) -> "Event | None":
     if description_lines:
         event.add('description', '\n'.join(description_lines))
 
-    interval = 1 if week == 'all' else 2
     event.add('rrule', {
         'freq': 'weekly',
         'interval': interval,
-        'until': _recurrence_end(monday).astimezone(pytz.utc),
+        'until': horizon_end.astimezone(pytz.utc),
     })
 
     event['uid'] = _stable_uid(day_name, week, time_str, name, aud, prep, groups)
@@ -98,8 +119,11 @@ def _build_event(day_name: str, lesson: dict, monday) -> "Event | None":
     return event
 
 
-def build_calendar(schedule_doc: dict, calendar_name: str) -> bytes:
-    """Строит .ics со всеми занятиями из документа расписания (группы или преподавателя)."""
+def build_calendar(schedule_doc: dict, calendar_name: str, subgroup: int = 0) -> bytes:
+    """Строит .ics со всеми занятиями из документа расписания (группы или преподавателя).
+
+    subgroup: 0 — всё расписание; 1/2/3 — только общие занятия и занятия этой подгруппы.
+    """
     cal = Calendar()
     cal.add('prodid', '-//Smart Schedule IRNITU//istu-schedule//RU')
     cal.add('version', '2.0')
@@ -108,12 +132,19 @@ def build_calendar(schedule_doc: dict, calendar_name: str) -> bytes:
     cal.add('x-wr-calname', calendar_name)
     cal.add('x-wr-timezone', 'Asia/Irkutsk')
 
-    monday = week0_monday()
+    now = datetime.now(TZ_IRKUTSK)
+    monday = week0_monday(now)
+    week_start = (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    horizon_end = _recurrence_end(now)
 
     for day in schedule_doc.get('schedule') or []:
         day_name = day.get('day')
         for lesson in day.get('lessons') or []:
-            event = _build_event(day_name, lesson, monday)
+            if subgroup and _lesson_subgroup(lesson) not in (0, subgroup):
+                continue
+            event = _build_event(day_name, lesson, monday, week_start, horizon_end)
             if event is not None:
                 cal.add_component(event)
 
