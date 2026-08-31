@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - '*'
-    types: [ opened, reopened ]
+    types: [ opened, reopened, synchronize ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:       
@@ -45,4 +45,4 @@ jobs:
     - name: Build the Docker image
       run: |
         ls -ltr
-        docker-compose build 
+        docker compose build
