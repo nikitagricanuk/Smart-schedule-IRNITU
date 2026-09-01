@@ -10,6 +10,19 @@ TZ_IRKUTSK = pytz.timezone('Asia/Irkutsk')
 locale_name = ('ru_RU.UTF-8' if platform.system() == 'Linux' else 'ru_RU')
 locale.setlocale(locale.LC_TIME, locale_name)
 
+
+def _week_for_tomorrow(week: str) -> str:
+    """Чётность недели, в которую попадает завтрашний день.
+
+    ``week`` — чётность текущей недели (из find_week). Если сегодня воскресенье,
+    то завтра уже понедельник следующей недели и чётность меняется.
+    """
+    if week not in ('odd', 'even'):
+        return week
+    if datetime.now(TZ_IRKUTSK).weekday() != 6:  # 6 — воскресенье
+        return week
+    return 'even' if week == 'odd' else 'odd'
+
 def day_creating(day):
     day = datetime.strptime(day, "%Y-%m-%d")
     months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября',
@@ -150,6 +163,7 @@ def get_one_day_schedule_in_str(schedule: list, week: str) -> str:
 
 
 def get_next_day_schedule_in_str(schedule: list, week: str) -> str:
+    week = _week_for_tomorrow(week)
     day_tomorrow = (datetime.now(TZ_IRKUTSK) + timedelta(days=1)).strftime('%A')
     for one_day in schedule:
         day = one_day['day'].upper()
@@ -235,6 +249,7 @@ def get_one_day_schedule_in_str_prep(schedule: list, week: str) -> str:
 
 
 def get_next_day_schedule_in_str_prep(schedule: list, week: str) -> str:
+    week = _week_for_tomorrow(week)
     day_tomorrow = (datetime.now(TZ_IRKUTSK) + timedelta(days=1)).strftime('%A')
     for one_day in schedule:
         day = one_day['day'].upper()

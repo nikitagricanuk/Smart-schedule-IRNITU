@@ -29,7 +29,7 @@ def _academic_year_start(now=None):
 
 def week0_monday(now=None):
     """Понедельник недели, в которую попадает 1 сентября текущего учебного года.
-    Эта неделя считается нечётной (см. functions_api/functions/find_week.py)."""
+    Эта неделя считается ЧЁТНОЙ (см. functions_api/functions/find_week.py)."""
     sep = _academic_year_start(now)
     return sep - timedelta(days=sep.weekday())
 
@@ -44,7 +44,9 @@ def _first_occurrence_date(monday, day_name: str, week: str):
     if day_name not in DAY_ORDER:
         return None
     first_date = monday + timedelta(days=DAY_ORDER.index(day_name))
-    if week == 'even':
+    # week0 (неделя с 1 сентября) — чётная, поэтому нечётные пары впервые
+    # проходят на неделю позже.
+    if week == 'odd':
         first_date += timedelta(days=7)
     return first_date
 
@@ -67,7 +69,7 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
     except ValueError:
         return None
 
-    first_date = _first_occurrence_date(monday, day_name, 'odd' if week == 'all' else week)
+    first_date = _first_occurrence_date(monday, day_name, 'even' if week == 'all' else week)
     if first_date is None:
         return None
 

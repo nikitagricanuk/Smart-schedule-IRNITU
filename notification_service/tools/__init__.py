@@ -4,7 +4,11 @@ DEBUG = False
 
 
 def find_week():
-    """Определение текущей недели"""
+    """Определение чётности текущей недели.
+
+    Счёт непрерывный от недели с 1 сентября (она чётная), см.
+    functions_api/functions/find_week.py.
+    """
     now = datetime.now()
     sep = datetime(now.year if now.month >= 9 else now.year - 1, 9, 1)
     d1 = sep - timedelta(days=sep.weekday())

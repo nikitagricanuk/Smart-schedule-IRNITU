@@ -1,24 +1,26 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import pytz
 
 TZ_IRKUTSK = pytz.timezone('Asia/Irkutsk')
 
 
 def find_week():
-    now = datetime.now(TZ_IRKUTSK)
-    # При формате данных 01:01:23.283+00:00 (00 как на Гринвиче) ошибки с выводом расписания ночью не возникает
-    # У нас формат данных 01:01:23.283+08:00
-    # С 00.00.00 до 01.02.59 поломка
-    error = False
-    #now = datetime.fromisoformat(f'2021-02-28 01:03:00.000+08:00')
-    if int(now.strftime('%H')) in [0, 1] and int(now.strftime('%M')) < 3:
-        error = True
-    sep = datetime(now.year if now.month >= 9 else now.year - 1, 9, 1, tzinfo=TZ_IRKUTSK)
+    """Чётность текущей учебной недели ('odd' / 'even').
 
-    d1 = sep - timedelta(days=sep.weekday())
-    d2 = now - timedelta(days=now.weekday())
-    parity = ((d2 - d1).days // 7) % 2
-    if error:
-        return 'odd' if parity else 'even'
+    ИРНИТУ ведёт непрерывный счёт недель от той, на которую приходится 1 сентября
+    (она считается ЧЁТНОЙ — на сайте это класс-контейнер ``sch-list-week-even``).
+    Каждая следующая календарная неделя меняет чётность.
 
-    return 'even' if parity else 'odd'
+    Раньше здесь возвращалась противоположная чётность, из-за чего расписание
+    показывало пары «серой» (следующей) недели как пары текущей. Ночной костыль
+    с ``error`` тоже убран: ``datetime.now(TZ_IRKUTSK)`` уже привязан к иркутскому
+    времени, поэтому неделя переключается в понедельник 00:00 по Иркутску.
+    """
+    today = datetime.now(TZ_IRKUTSK).date()
+    sep = date(today.year if today.month >= 9 else today.year - 1, 9, 1)
+
+    week0_monday = sep - timedelta(days=sep.weekday())
+    current_monday = today - timedelta(days=today.weekday())
+    parity = ((current_monday - week0_monday).days // 7) % 2
+
+    return 'odd' if parity else 'even'
