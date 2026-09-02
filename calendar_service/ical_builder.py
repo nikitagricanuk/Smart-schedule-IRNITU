@@ -11,6 +11,24 @@ DAY_ORDER = ['понедельник', 'вторник', 'среда', 'четв
 LESSON_DURATION_MINUTES = 90
 
 _SUBGROUP_RE = re.compile(r'подгруппа\s*(\d+)', re.IGNORECASE)
+_TRANSFER_DATE_RE = re.compile(r'\bна\s+(\d{4})\.(\d{2})\.(\d{2})')
+
+
+def _is_one_time_transfer(name: str) -> bool:
+    """'Разовый перенос ...' — одноразовое занятие, а не часть регулярного расписания."""
+    return name.lower().startswith('разовый перенос')
+
+
+def _parse_transfer_date(name: str):
+    """Достаём дату из 'Разовый перенос ..., на 2026.09.01 перенос'."""
+    match = _TRANSFER_DATE_RE.search(name)
+    if not match:
+        return None
+    year, month, day = (int(part) for part in match.groups())
+    try:
+        return datetime(year, month, day).date()
+    except ValueError:
+        return None
 
 
 def _lesson_subgroup(lesson: dict) -> int:
@@ -69,19 +87,29 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
     except ValueError:
         return None
 
-    first_date = _first_occurrence_date(monday, day_name, 'even' if week == 'all' else week)
-    if first_date is None:
-        return None
+    one_time = _is_one_time_transfer(name)
+    if one_time:
+        # Одноразовый перенос занятия: дата берётся из текста названия, а не
+        # из дня недели/чётности — они здесь не означают регулярное повторение
+        # и могут указывать на неделю, в которой ISTU отрисовал уведомление.
+        transfer_date = _parse_transfer_date(name)
+        if transfer_date is None or transfer_date < week_start.date():
+            return None
+        first_date = TZ_IRKUTSK.localize(datetime(transfer_date.year, transfer_date.month, transfer_date.day))
+    else:
+        first_date = _first_occurrence_date(monday, day_name, 'even' if week == 'all' else week)
+        if first_date is None:
+            return None
 
-    interval = 1 if week == 'all' else 2
-    # Не тащим в подписку прошедшие занятия: сдвигаем первое повторение вперёд
-    # целыми шагами (шаг = период повторения, поэтому чётность недели не
-    # ломается) до недели, в которой мы сейчас находимся.
-    step = timedelta(days=7 * interval)
-    while first_date < week_start:
-        first_date += step
-    if first_date.date() > horizon_end.date():
-        return None
+        interval = 1 if week == 'all' else 2
+        # Не тащим в подписку прошедшие занятия: сдвигаем первое повторение вперёд
+        # целыми шагами (шаг = период повторения, поэтому чётность недели не
+        # ломается) до недели, в которой мы сейчас находимся.
+        step = timedelta(days=7 * interval)
+        while first_date < week_start:
+            first_date += step
+        if first_date.date() > horizon_end.date():
+            return None
 
     dtstart_local = TZ_IRKUTSK.localize(
         datetime(first_date.year, first_date.month, first_date.day, hours, minutes)
@@ -110,13 +138,16 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
     if description_lines:
         event.add('description', '\n'.join(description_lines))
 
-    event.add('rrule', {
-        'freq': 'weekly',
-        'interval': interval,
-        'until': horizon_end.astimezone(pytz.utc),
-    })
+    if one_time:
+        event['uid'] = _stable_uid('one-time', first_date.date().isoformat(), time_str, name, aud, prep, groups)
+    else:
+        event.add('rrule', {
+            'freq': 'weekly',
+            'interval': interval,
+            'until': horizon_end.astimezone(pytz.utc),
+        })
+        event['uid'] = _stable_uid(day_name, week, time_str, name, aud, prep, groups)
 
-    event['uid'] = _stable_uid(day_name, week, time_str, name, aud, prep, groups)
     event.add('dtstamp', datetime.now(pytz.utc))
     return event
 
