@@ -52,10 +52,26 @@ def week0_monday(now=None):
     return sep - timedelta(days=sep.weekday())
 
 
+ROLLING_RECURRENCE_DAYS = 35
+
+
 def _recurrence_end(now=None):
-    """Конец учебного года с запасом, чтобы подписка не накапливала лишние повторения."""
-    sep = _academic_year_start(now)
-    return TZ_IRKUTSK.localize(datetime(sep.year + 1, 8, 31, 23, 59, 59))
+    """Скользящий горизонт повторения — не весь учебный год, а несколько недель вперёд.
+
+    Сайт ИРНИТУ отдаёт срез только на одну неделю за раз и размечает классом
+    week-odd/week-even/week-all как по-настоящему регулярные пары, так и
+    разовые события (например, «Встреча с дирекцией института»), которые
+    просто попали в эту неделю — отличить их по разметке нельзя. Раз
+    регулярность пары подтверждается только следующим опросом сайта
+    (см. GETTING_SCHEDULE_TIME_HOURS), обещать подписке повторения на весь
+    год вперёд нельзя: разовое событие «зависает» в календаре на месяцы.
+    Короткое окно продлевается само собой при каждой генерации .ics по
+    свежим данным, а разовое событие само выпадет из выдачи, как только
+    исчезнет с сайта.
+    """
+    now = now or datetime.now(TZ_IRKUTSK)
+    horizon = now + timedelta(days=ROLLING_RECURRENCE_DAYS)
+    return horizon.replace(hour=23, minute=59, second=59, microsecond=0)
 
 
 def _first_occurrence_date(monday, day_name: str, week: str):

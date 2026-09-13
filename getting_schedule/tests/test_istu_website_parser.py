@@ -188,6 +188,63 @@ class TestIstuWebsiteParser(unittest.TestCase):
         subgroups = sorted(lesson["info"] for lesson in schedule[0]["lessons"])
         self.assertEqual(subgroups, ["( Лаб. раб. подгруппа 1 )", "( Лаб. раб. подгруппа 2 )"])
 
+    def test_parse_group_schedule_html_dedupes_card_shown_in_both_parities(self):
+        # ISTU иногда рисует ОДНУ и ту же карточку (тот же id) сразу в блоках
+        # week-odd и week-even одного слота времени — так у себя на сайте
+        # ИРНИТУ помечает пары, которые идут каждую неделю, но не получили
+        # класс week-all. Раньше это давало 2 разные пары (odd/even) с
+        # несовпадающими датами повторения, из-за чего конкретная суббота
+        # могла остаться без занятия.
+        html = """
+        <h1>Группа ИСТб-24-2</h1>
+        <div class="sch-list-week">
+          <div class="sch-list-day" data-params="{'date':'19.09.2026'}">
+            <h2 class="sch-list-day-header">суббота, 19 сентября</h2>
+            <div class="sch-list-item" data-params="{'time':'13:45'}">
+              <div class="sch-list-item-time"><div class="sch-list-item-time-inner">13:45</div></div>
+              <div class="sch-list-item-classes">
+                <div class="sch-list-item-week week-even">
+                  <div class="schcls-item schcls-card" id="sh12121826">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Моделирование процессов и систем</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/2873/">Бучнев О.С.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478236/">ИСТб-24-2</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/505/">В-208</a></div>
+                  </div>
+                </div>
+                <div class="sch-list-item-week week-odd">
+                  <div class="schcls-item schcls-card" id="sh12121826">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Моделирование процессов и систем</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/2873/">Бучнев О.С.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478236/">ИСТб-24-2</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/505/">В-208</a></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+
+        group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name="FALLBACK")
+        self.assertEqual(group_name, "ИСТб-24-2")
+        self.assertEqual(len(schedule[0]["lessons"]), 1)
+        self.assertEqual(schedule[0]["lessons"][0]["week"], "all")
+        self.assertEqual(schedule[0]["lessons"][0]["name"], "Моделирование процессов и систем")
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["week"], "all")
+
 
 if __name__ == "__main__":
     unittest.main()

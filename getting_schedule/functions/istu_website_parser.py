@@ -221,6 +221,31 @@ def _merge_group_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any
     day_lessons.append(lesson)
 
 
+def _resolve_effective_weeks(week_blocks: List[Tuple[str, Tag]]) -> Dict[str, str]:
+    """Определяет "эффективную" чётность карточки внутри одного слота времени.
+
+    ISTU иногда рендерит ОДНУ и ту же карточку (тот же id) сразу в блоках
+    ``week-odd`` и ``week-even`` — это значит, что занятие идёт каждую неделю,
+    просто сайт не проставил ему класс ``week-all``. Без этой поправки такая
+    карточка попадала бы в расписание дважды: как чётная и как нечётная пара
+    с несовпадающими датами повторения, и на нужную субботу могла не попасть
+    ни одна из копий.
+    """
+    id_weeks: Dict[str, set] = {}
+    for week, week_block in week_blocks:
+        for card in week_block.find_all("div", class_="schcls-item", recursive=False):
+            card_id = card.get("id")
+            if not card_id or "schcls-empty" in card.get("class", []):
+                continue
+            id_weeks.setdefault(card_id, set()).add(week)
+
+    effective_week_by_id = {}
+    for card_id, weeks in id_weeks.items():
+        if {"odd", "even"} <= weeks:
+            effective_week_by_id[card_id] = "all"
+    return effective_week_by_id
+
+
 def _find_schedule_container(soup: BeautifulSoup) -> Optional[Tag]:
     schedule_container = soup.select_one("div.sch-list-week")
     if schedule_container:
@@ -311,10 +336,17 @@ def parse_group_schedule_html(
             if not classes_container:
                 continue
 
+            week_blocks = []
             for week_block in classes_container.find_all("div", class_="sch-list-item-week", recursive=False):
                 week = _normalize_week(week_block.get("class", []))
                 if not week:
                     continue
+                week_blocks.append((week, week_block))
+
+            effective_week_by_id = _resolve_effective_weeks(week_blocks)
+            seen_duplicate_ids = set()
+
+            for week, week_block in week_blocks:
                 recognized_week_blocks += 1
 
                 for card in week_block.find_all("div", class_="schcls-item", recursive=False):
@@ -331,6 +363,13 @@ def parse_group_schedule_html(
                             },
                         )
                         continue
+
+                    card_id = card.get("id")
+                    week = effective_week_by_id.get(card_id, week)
+                    if card_id in effective_week_by_id:
+                        if card_id in seen_duplicate_ids:
+                            continue
+                        seen_duplicate_ids.add(card_id)
 
                     info = card.find("div", class_="schcls-item-info")
                     if not info:
