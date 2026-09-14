@@ -102,8 +102,10 @@ def convert_schedule(pg_schedule: list) -> list:
     item_index = 0  # Счетчик индекса.
     for item in pg_schedule:
 
-        # Проверяем, что расписание действует
-        if item['dbeg'] <= date_now <= item['dend']:
+        # Проверяем, что расписание еще не истекло.
+        # Не проверяем dbeg: для PostgreSQL-источника это дата понедельника
+        # заказанной недели (в т.ч. следующей), а не начало действия записи.
+        if date_now <= item['dend']:
 
             week, day = schedule_tools.getting_week_and_day_of_week(item)
 
@@ -193,8 +195,10 @@ def convert_teachers_schedule(pg_schedule: list) -> list:
     item_index = 0  # Счетчик индекса.
     for item in pg_schedule:
 
-        # Проверяем, что расписание действует
-        if item['dbeg'] <= date_now <= item['dend']:
+        # Проверяем, что расписание еще не истекло.
+        # Не проверяем dbeg: для PostgreSQL-источника это дата понедельника
+        # заказанной недели (в т.ч. следующей), а не начало действия записи.
+        if date_now <= item['dend']:
 
             week, day = schedule_tools.getting_week_and_day_of_week(item)
 
@@ -285,8 +289,10 @@ def convert_auditories_schedule(pg_schedule: list) -> list:
     item_index = 0  # Счетчик индекса.
     for item in pg_schedule:
 
-        # Проверяем, что расписание действует и указано название аудитории.
-        if item['dbeg'] <= date_now <= item['dend'] and item['auditories_verbose']:
+        # Проверяем, что расписание еще не истекло, и указано название аудитории.
+        # Не проверяем dbeg: для PostgreSQL-источника это дата понедельника
+        # заказанной недели (в т.ч. следующей), а не начало действия записи.
+        if date_now <= item['dend'] and item['auditories_verbose']:
 
             week, day = schedule_tools.getting_week_and_day_of_week(item)
 
