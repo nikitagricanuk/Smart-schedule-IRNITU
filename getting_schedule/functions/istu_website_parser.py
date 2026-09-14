@@ -365,7 +365,7 @@ def parse_group_schedule_html(
                         continue
 
                     card_id = card.get("id")
-                    week = effective_week_by_id.get(card_id, week)
+                    card_week = effective_week_by_id.get(card_id, week)
                     if card_id in effective_week_by_id:
                         if card_id in seen_duplicate_ids:
                             continue
@@ -427,7 +427,7 @@ def parse_group_schedule_html(
                     lesson_info = _build_info(lesson_type, subgroup)
                     group_lesson = {
                         "time": class_time,
-                        "week": week,
+                        "week": card_week,
                         "name": lesson_name,
                         "aud": auditories,
                         "info": lesson_info,
@@ -438,7 +438,7 @@ def parse_group_schedule_html(
                     events.append({
                         "day": day_name,
                         "time": class_time,
-                        "week": week,
+                        "week": card_week,
                         "name": lesson_name,
                         "info": lesson_info,
                         "aud": auditories,

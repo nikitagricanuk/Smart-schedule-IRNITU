@@ -245,6 +245,72 @@ class TestIstuWebsiteParser(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["week"], "all")
 
+    def test_parse_group_schedule_html_duplicate_card_does_not_leak_parity_to_sibling(self):
+        # Регрессия: раньше "эффективная" чётность дублированной карточки
+        # (all) записывалась в ту же переменную цикла, которой размечался
+        # блок недели — и следующая карточка в том же блоке (например, пара
+        # другой подгруппы, которая идёт только по нечётным неделям)
+        # ошибочно наследовала "all" вместо своей настоящей чётности.
+        html = """
+        <h1>Группа ИСТб-24-2</h1>
+        <div class="sch-list-week">
+          <div class="sch-list-day" data-params="{'date':'19.09.2026'}">
+            <h2 class="sch-list-day-header">суббота, 19 сентября</h2>
+            <div class="sch-list-item" data-params="{'time':'13:45'}">
+              <div class="sch-list-item-time"><div class="sch-list-item-time-inner">13:45</div></div>
+              <div class="sch-list-item-classes">
+                <div class="sch-list-item-week week-even">
+                  <div class="schcls-item schcls-card" id="sh12121826">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Моделирование процессов и систем</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/2873/">Бучнев О.С.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478236/">ИСТб-24-2</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/505/">В-208</a></div>
+                  </div>
+                </div>
+                <div class="sch-list-item-week week-odd">
+                  <div class="schcls-item schcls-card" id="sh12121826">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Моделирование процессов и систем</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/2873/">Бучнев О.С.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478236/">ИСТб-24-2</a>
+                        подгруппа 1
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/505/">В-208</a></div>
+                  </div>
+                  <div class="schcls-item schcls-card" id="sh_other_subgroup2">
+                    <div class="schcls-item-info">
+                      <div class="schcls-item-name">Основы мобильной разработки</div>
+                      <div class="schcls-item-distype type-3">лабораторная работа</div>
+                      <div class="schcls-item-prepod"><a href="/raspisanie/prepodavatel/1/">Харахинов В.А.</a></div>
+                      <div class="schcls-item-group">
+                        <a href="/raspisanie/grup/478236/">ИСТб-24-2</a>
+                        подгруппа 2
+                      </div>
+                    </div>
+                    <div class="schcls-item-aud"><a href="/raspisanie/aud/105/">В-105</a></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+
+        group_name, schedule, events = parse_group_schedule_html(html=html, fallback_group_name="FALLBACK")
+        self.assertEqual(group_name, "ИСТб-24-2")
+        lessons_by_name = {lesson["name"]: lesson for lesson in schedule[0]["lessons"]}
+        self.assertEqual(lessons_by_name["Моделирование процессов и систем"]["week"], "all")
+        self.assertEqual(lessons_by_name["Основы мобильной разработки"]["week"], "odd")
+
 
 if __name__ == "__main__":
     unittest.main()
