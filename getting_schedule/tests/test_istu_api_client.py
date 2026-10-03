@@ -40,13 +40,21 @@ class TestApiClient(unittest.TestCase):
         self.teachers = {100: 'Иванов И.И.'}
         self.auds = {200: 'К-303'}
 
-    def _parse(self, payloads_by_monday):
+    def _parse(self, payloads_by_monday, extra_transfers=None):
         group = {'group_id': 10, 'name': 'АД-25-1'}
 
         def fake_week(group_id, monday):
             return payloads_by_monday.get(monday, {'schedule': [], 'queries': []})
 
-        with mock.patch.object(self.client, '_fetch_group_week', side_effect=fake_week):
+        # Разовые переносы приходят отдельным запросом с широким диапазоном.
+        transfers = {'schedule': [], 'queries': []}
+        for payload in payloads_by_monday.values():
+            transfers['queries'] += payload.get('queries', [])
+            transfers['schedule'] += [i for i in payload['schedule'] if i.get('type') == 'query']
+        transfers.update(extra_transfers or {})
+
+        with mock.patch.object(self.client, '_fetch_group_week', side_effect=fake_week), \
+                mock.patch.object(self.client, '_fetch_group_transfers', return_value=transfers):
             return self.client._parse_group(group, date(2026, 10, 3), self.titles, self.teachers, self.auds)
 
     def test_every_week_lesson_collapses_and_parity_lessons_keep_their_week(self):
@@ -89,6 +97,17 @@ class TestApiClient(unittest.TestCase):
         self.assertEqual(lesson['name'], 'Разовый перенос «Геология», перенос из Е-223, на 2026.10.06 перенос')
         self.assertEqual(lesson['week'], 'odd')
         self.assertEqual(lesson['time'], '15:30')
+
+    def test_transfer_far_in_the_future_is_collected_independently_of_regular_weeks(self):
+        move = _item(id=77, type='query', day=3, para=2, title='Физика')
+        doc, _ = self._parse(
+            {date(2026, 9, 28): {'schedule': [_item()], 'queries': []}},
+            extra_transfers={'schedule': [move], 'queries': [{'id': 77, 'dt': '2026-11-25'}]},
+        )
+        names = [l['name'] for d in doc['schedule'] for l in d['lessons']]
+        self.assertIn('Разовый перенос Физика, на 2026.11.25 перенос', names)
+        moved = [l for d in doc['schedule'] for l in d['lessons'] if l['name'].startswith('Разовый')][0]
+        self.assertEqual(moved['week'], week_parity_of(date(2026, 11, 23)))
 
     def test_empty_week_falls_back_to_next_nearest_week_of_same_parity(self):
         doc, _ = self._parse({date(2026, 9, 14): {'schedule': [_item(everyweek=1)], 'queries': []}})

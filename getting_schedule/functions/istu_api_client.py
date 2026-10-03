@@ -63,6 +63,10 @@ LESSON_TYPES = {1: "лекция", 2: "практика", 3: "лаборатор
 # (каникулы, начало семестра).
 WEEK_SEARCH_RADIUS = 3
 
+# На какой срок вперёд собираем разовые переносы (запрос с диапазоном длиннее недели
+# возвращает только их, без регулярных пар).
+QUERY_HORIZON_DAYS = 120
+
 DEFAULT_INSTITUTE = "ИРНИТУ"
 
 
@@ -200,6 +204,18 @@ class ISTUApiClient:
             },
         )
 
+    def _fetch_group_transfers(self, group_id: int, today: date) -> Dict[str, Any]:
+        """Разовые переносы на ближайшие месяцы одним запросом (диапазон > недели)."""
+        monday = _monday_of(today)
+        return self._get_json(
+            f"group/{group_id}/schedule/",
+            params={
+                "dbeg": monday.isoformat(),
+                "dend": (monday + timedelta(days=QUERY_HORIZON_DAYS)).isoformat(),
+                "with_projected": "false",
+            },
+        )
+
     def _fetch_group_weeks(self, group_id: int, today: date) -> List[Tuple[str, date, Dict[str, Any]]]:
         """Для каждой чётности берём ближайшую неделю, где у группы есть пары."""
         weeks = []
@@ -298,6 +314,8 @@ class ISTUApiClient:
         for parity, monday, payload in self._fetch_group_weeks(group["group_id"], today):
             queries_by_id = {query["id"]: query for query in payload.get("queries") or []}
             for item in payload.get("schedule") or []:
+                if item.get("type") == "query":
+                    continue  # разовые переносы собираются отдельным запросом ниже
                 is_every_week = item.get("everyweek") == 2 and item.get("type") != "query"
                 week = "all" if is_every_week else parity
                 event = self._lesson_from_item(
@@ -326,6 +344,30 @@ class ISTUApiClient:
                         "prep": event["prep_names"],
                     },
                 )
+
+        transfers = self._fetch_group_transfers(group["group_id"], today)
+        queries_by_id = {query["id"]: query for query in transfers.get("queries") or []}
+        for item in transfers.get("schedule") or []:
+            if item.get("type") != "query":
+                continue
+            event = self._lesson_from_item(
+                item, "all", _monday_of(today), queries_by_id, group_titles, teacher_names, auditory_names,
+                group["name"],
+            )
+            if not event:
+                continue
+            events.append(event)
+            _merge_group_lesson(
+                day_to_lessons.setdefault(event["day"], []),
+                {
+                    "time": event["time"],
+                    "week": event["week"],
+                    "name": event["name"],
+                    "aud": event["aud"],
+                    "info": event["info"],
+                    "prep": event["prep_names"],
+                },
+            )
 
         schedule = []
         for day_name, lessons in day_to_lessons.items():
