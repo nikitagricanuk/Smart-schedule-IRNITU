@@ -55,12 +55,13 @@ Telegram API шли через туннель, а не напрямую. Ост�
 1. Прописать переменные окружения в файл .env (пример находися в файле .env.example):
     - `TG_TOKEN` - токен Telegram бота
     - `VK_TOKEN` - токен Вк бота
-    - `SCHEDULE_SOURCE` - источник расписания: `istu_website` (по умолчанию) или `postgres`
+    - `SCHEDULE_SOURCE` - источник расписания: `istu_api` (по умолчанию), `istu_website` (парсинг сайта) или `postgres`
+    - `ISTU_API_KEY` - ключ API schedule.istu.edu (нужен при `SCHEDULE_SOURCE=istu_api`)
     - `PG_DB_HOST` - хост базы данных PostgreSQL
     - `PG_DB_DATABASE` - название базы данных PostgreSQL
     - `PG_DB_USER` - пользователь базы данных PostgreSQL
     - `PG_DB_PASSWORD` - пароль базы данных PostgreSQL
-    - при `SCHEDULE_SOURCE=istu_website` переменные `PG_DB_*` можно не заполнять
+    - при `SCHEDULE_SOURCE=istu_api` или `istu_website` переменные `PG_DB_*` можно не заполнять
     - `CALENDAR_PUBLIC_BASE_URL` - публичный адрес calendar_service (для ссылок, которые присылает бот)
     - `CALENDAR_SERVICE_PORT` - порт, на котором calendar_service публикуется наружу (по умолчанию `8090`)
 
