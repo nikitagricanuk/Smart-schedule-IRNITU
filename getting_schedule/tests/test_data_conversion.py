@@ -125,7 +125,7 @@ class TestScheduleToolsMethods(unittest.TestCase):
         result = schedule_tools.is_there_dict_with_value_in_list(input_value_list, input_value_key)
         self.assertTrue(result)
 
-    def test_getting_week_and_day_of_week_pqLesson_retunEvenSreda(self):
+    def test_getting_week_and_day_of_week_pqLesson_retunOddSreda(self):
         input_value = {
             'obozn': '',
             'begtime': '10:00',
@@ -138,12 +138,12 @@ class TestScheduleToolsMethods(unittest.TestCase):
             'ngroup': None,
             'dend': datetime.date(2021, 4, 12)
         }
-        expected = ('even', 'среда')
+        expected = ('odd', 'среда')
 
         result = schedule_tools.getting_week_and_day_of_week(input_value)
         self.assertEqual(result, expected)
 
-    def test_getting_week_and_day_of_week_pqLesson_retunOddPatnica(self):
+    def test_getting_week_and_day_of_week_pqLesson_retunEvenPatnica(self):
         input_value = {
             'obozn': '',
             'begtime': '10:00',
@@ -156,7 +156,7 @@ class TestScheduleToolsMethods(unittest.TestCase):
             'ngroup': None,
             'dend': datetime.date(2021, 4, 12)
         }
-        expected = ('odd', 'пятница')
+        expected = ('even', 'пятница')
 
         result = schedule_tools.getting_week_and_day_of_week(input_value)
         self.assertEqual(result, expected)
@@ -832,7 +832,7 @@ class TestScheduleConversionMethods(unittest.TestCase):
         self.assertEqual(result, expected)
 
     @mock.patch('data_conversion.datetime')
-    def test_convert_schedule_oneDictInListLabaEven(self, mock_dt):
+    def test_convert_schedule_oneDictInListLabaOdd(self, mock_dt):
         mock_dt.now(TIME_ZONE).date = mock.Mock(return_value=datetime.date(2021, 1, 15))
 
         input_value = [
@@ -857,7 +857,7 @@ class TestScheduleConversionMethods(unittest.TestCase):
                         'lessons': [
                             {
                                 'time': '11:45',
-                                'week': 'even',
+                                'week': 'odd',
                                 'name': 'Минералогия ювелирных камней',
                                 'aud': ['Е-215б'],
                                 'info': '( Лаб. раб. подгруппа 1 )',
