@@ -12,11 +12,20 @@ LESSON_DURATION_MINUTES = 90
 
 _SUBGROUP_RE = re.compile(r'подгруппа\s*(\d+)', re.IGNORECASE)
 _TRANSFER_DATE_RE = re.compile(r'\bна\s+(\d{4})\.(\d{2})\.(\d{2})')
+_TRANSFER_FROM_DATE_RE = re.compile(r'перенос\s+с\s+(\d{4})\.(\d{2})\.(\d{2})', re.IGNORECASE)
 
 
 def _is_one_time_transfer(name: str) -> bool:
-    """'Разовый перенос ...' — одноразовое занятие, а не часть регулярного расписания."""
-    return name.lower().startswith('разовый перенос')
+    """Одноразовое занятие (не часть регулярного расписания). Два варианта карточек ISTU:
+    'Разовый перенос ..., на YYYY.MM.DD' — заглушка на старом месте, указывает вперёд;
+    '..., перенос с YYYY.MM.DD' — сама карточка на новом месте, дата в названии старая.
+    Не путать с 'перенос из <ауд>' — это смена аудитории в тот же день, занятие обычное."""
+    lowered = name.lower()
+    if lowered.startswith('разовый перенос'):
+        return True
+    if 'перенос' not in lowered:
+        return False
+    return bool(_TRANSFER_DATE_RE.search(name) or _TRANSFER_FROM_DATE_RE.search(name))
 
 
 def _parse_transfer_date(name: str):
@@ -104,12 +113,15 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
         return None
 
     one_time = _is_one_time_transfer(name)
-    if one_time:
-        # Одноразовый перенос занятия: дата берётся из текста названия, а не
-        # из дня недели/чётности — они здесь не означают регулярное повторение
-        # и могут указывать на неделю, в которой ISTU отрисовал уведомление.
-        transfer_date = _parse_transfer_date(name)
-        if transfer_date is None or transfer_date < week_start.date():
+    # 'на YYYY.MM.DD' указывает вперёд — это дата, куда занятие перенесено,
+    # берём её напрямую вместо дня недели/чётности. Другой одноразовый вариант,
+    # '... перенос с YYYY.MM.DD' без 'на DATE', — это уже сама перенесённая
+    # карточка, стоящая на своём новом дне/времени; дата в названии старая
+    # (откуда перенесли) и для вычисления occurrence не годится, поэтому для
+    # неё (как и для обычных занятий) считаем дату по дню недели и чётности.
+    transfer_date = _parse_transfer_date(name) if one_time else None
+    if transfer_date is not None:
+        if transfer_date < week_start.date():
             return None
         first_date = TZ_IRKUTSK.localize(datetime(transfer_date.year, transfer_date.month, transfer_date.day))
     else:
