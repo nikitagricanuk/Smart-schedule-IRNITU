@@ -88,7 +88,8 @@ services:
       - PG_DB_PASSWORD=${PG_DB_PASSWORD}  # пароль PostgreSQL
       - PG_DB_HOST=${PG_DB_HOST} # адрес PostgreSQL
       - PG_DB_PORT=5432 # порт PostgreSQL (default: 5432)
-      - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_website} # источник расписания: istu_website | postgres
+      - SCHEDULE_SOURCE=${SCHEDULE_SOURCE:-istu_api} # источник расписания: istu_api | istu_website | postgres
+      - ISTU_API_KEY=${ISTU_API_KEY} # ключ API schedule.istu.edu (заголовок Authorization: Token ...)
       - GETTING_SCHEDULE_TIME_HOURS=1 # время задержки (в часах) между обращениями к PostgreSQL для получения расписания (default: 1)
       - ISTU_DETAILED_LOGS=${ISTU_DETAILED_LOGS:-0} # 1 = подробные логи по группам, 0 = только сводка
       - ISTU_PROGRESS_LOGS=${ISTU_PROGRESS_LOGS:-1} # 1 = логировать прогресс парсинга, 0 = без промежуточных progress-логов

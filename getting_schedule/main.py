@@ -6,6 +6,7 @@ import data_conversion
 from functions.mongo_storage import MongodbService
 from functions.logger import logger
 from functions.istu_website_parser import ISTUScheduleParser
+from functions.istu_api_client import ISTUApiClient
 
 from pymongo.errors import PyMongoError
 import psycopg2
@@ -21,7 +22,8 @@ import requests
 GETTING_SCHEDULE_TIME_HOURS = float(os.environ.get('GETTING_SCHEDULE_TIME_HOURS')
                                     if os.environ.get('GETTING_SCHEDULE_TIME_HOURS')
                                     else 1) * 60 * 60
-SCHEDULE_SOURCE = os.environ.get('SCHEDULE_SOURCE', 'istu_website').lower().strip()
+# Источник расписания: istu_api (по умолчанию) | istu_website | postgres.
+SCHEDULE_SOURCE = os.environ.get('SCHEDULE_SOURCE', 'istu_api').lower().strip()
 
 mongo_storage = MongodbService().get_instance()
 
@@ -172,8 +174,8 @@ def _save_collection_if_changed(
 
 
 def processing_schedule_from_website():
-    """Обработка расписания с официального сайта ИРНИТУ."""
-    logger.info('Start processing_schedule_from_website...')
+    """Загрузка расписания ИРНИТУ (через API или парсингом сайта) и сохранение в MongoDB."""
+    logger.info(f'Start processing_schedule_from_website (source={SCHEDULE_SOURCE})...')
     start_time = time.time()
 
     _update_runtime_status(
@@ -189,7 +191,14 @@ def processing_schedule_from_website():
             **payload,
         )
 
-    parser = ISTUScheduleParser(progress_callback=parser_progress_callback)
+    use_api = SCHEDULE_SOURCE != 'istu_website'
+    if use_api and not os.environ.get('ISTU_API_KEY', '').strip():
+        logger.warning('ISTU_API_KEY is not set. Fallback to ISTU website parser.')
+        use_api = False
+    if use_api:
+        parser = ISTUApiClient(progress_callback=parser_progress_callback)
+    else:
+        parser = ISTUScheduleParser(progress_callback=parser_progress_callback)
     data = parser.parse()
     data['schedule'] = _restore_cached_empty_schedule_docs(
         new_docs=data['schedule'],
@@ -478,7 +487,7 @@ def main():
                 processing_schedule()
             else:
                 if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
-                    logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU website parser.')
+                    logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU API.')
                 if _can_use_cached_website_data():
                     _update_runtime_status(
                         state='success',
