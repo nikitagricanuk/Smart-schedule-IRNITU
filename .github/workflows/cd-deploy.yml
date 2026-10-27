@@ -10,24 +10,20 @@ concurrency:
   group: cd-master
   cancel-in-progress: false
 
+# Both jobs run on the self-hosted runner on novsrv (the production server),
+# registered for this repository under ~/actions-runner as the deploy user.
 jobs:
   quality:
     name: Quality gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.8"
-
       - name: Lint (syntax errors only)
         run: |
-          python -m pip install --upgrade pip
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          docker run --rm -v "$PWD:/src:Z" -w /src python:3.8 sh -c \
+            "pip install --quiet flake8 && flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics"
 
       - name: Validate compose file
         run: docker compose -f docker-compose.yaml config --quiet
@@ -35,55 +31,34 @@ jobs:
   deploy:
     name: Deploy to server
     needs: quality
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     environment: production
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/deploy/Smart-schedule-IRNITU' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure SSH
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      # The server holds two files that are NOT in git and must survive the sync:
+      # The deploy dir holds two files that are NOT in git and must survive the sync:
       #   .env                  - real tokens / DB creds
       #   vpn/config/awg0.conf  - AmneziaWG client config (keys)
-      - name: Sync repository to server
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      - name: Sync repository to deploy directory
         run: |
-          rsync -az --delete \
+          rsync -a --delete \
             --exclude '.git' \
             --exclude '.github' \
             --exclude '.env' \
             --exclude 'vpn/config/' \
             --exclude 'data/' \
             --exclude 'backup/' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=accept-new" \
-            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH:-Smart-schedule-IRNITU}/"
+            ./ "${DEPLOY_PATH}/"
 
       - name: Build images and restart stack
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        working-directory: ${{ env.DEPLOY_PATH }}
         run: |
-          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=accept-new \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "set -eu; cd '${DEPLOY_PATH:-Smart-schedule-IRNITU}'; \
-             test -f .env || { echo 'missing .env on server'; exit 1; }; \
-             test -f vpn/config/awg0.conf || { echo 'missing vpn/config/awg0.conf on server'; exit 1; }; \
-             docker compose build; \
-             docker compose up -d --remove-orphans; \
-             docker compose ps"
+          set -eu
+          test -f .env || { echo 'missing .env on server'; exit 1; }
+          test -f vpn/config/awg0.conf || { echo 'missing vpn/config/awg0.conf on server'; exit 1; }
+          docker compose build
+          docker compose up -d --remove-orphans
+          docker compose ps
