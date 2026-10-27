@@ -7,7 +7,14 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 
 from actions import commands
-from actions.main_menu import calendar_subscription, main_menu, reminders, schedule, subgroup_settings
+from actions.main_menu import (
+    calendar_subscription,
+    hidden_lessons,
+    main_menu,
+    reminders,
+    schedule,
+    subgroup_settings,
+)
 from actions.registration import student_registration, teacher_registration
 from actions.search.aud_search import (
     handler_buttons_aud,
@@ -181,6 +188,11 @@ async def message_router(message: types.Message):
                 subgroup_settings.choose_subgroup,
                 bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK,
             )
+        elif text == 'Скрыть занятия 🙈':
+            await run_sync(
+                hidden_lessons.show_hidden_lessons,
+                bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK,
+            )
         elif text in content_main_menu_buttons:
             await run_sync(main_menu.processing_main_buttons, bot=bot, message=message, storage=storage, tz=TZ_IRKUTSK)
         else:
@@ -201,7 +213,10 @@ async def callback_router(callback_query: types.CallbackQuery):
         pass
 
     try:
-        if 'subgroup' in data:
+        if data.startswith(hidden_lessons.CALLBACK_PREFIX):
+            await run_sync(hidden_lessons.handle_hidden_lessons_callback,
+                           bot=bot, message=callback_query, storage=storage, tz=TZ_IRKUTSK)
+        elif 'subgroup' in data:
             await run_sync(subgroup_settings.handle_subgroup_callback,
                            bot=bot, message=callback_query, storage=storage, tz=TZ_IRKUTSK)
         elif any(word in data for word in content_students_registration):
