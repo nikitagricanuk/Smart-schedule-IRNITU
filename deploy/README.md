@@ -1,22 +1,22 @@
 # Deploy
 
+The CD workflow runs on a self-hosted runner on the production server (novsrv),
+registered with `~/actions-runner/register-repo` as the `deploy` user
+(user systemd unit `actions-runner@nikitagricanuk-Smart-schedule-IRNITU`, labels
+`self-hosted, Linux, X64, novsrv`). PR checks (`checkers.yml`) stay on
+GitHub-hosted runners: the repo is public and the runner user controls Docker, so
+fork PR code must never run on this host.
+
 CI (`.github/workflows/cd-deploy.yml`) on every push to `master`:
 
-1. lint + `docker compose config` check;
-2. `rsync` the repo to the server (keeping `.env` and `vpn/config/` intact);
-3. `docker compose build && docker compose up -d --remove-orphans` on the server.
+1. lint (in a `python:3.8` container) + `docker compose config` check;
+2. `rsync` the checkout into the deploy directory (keeping `.env` and `vpn/config/` intact);
+3. `docker compose build && docker compose up -d --remove-orphans` there.
 
 Images are built on the server — no registry involved.
 
-## Required GitHub Actions secrets
-
-| secret | value |
-| --- | --- |
-| `DEPLOY_HOST` | server hostname / IP |
-| `DEPLOY_USER` | ssh user (in the `docker` group) |
-| `DEPLOY_SSH_KEY` | private key; its public key must be in `~<user>/.ssh/authorized_keys` |
-| `DEPLOY_PORT` | optional, defaults to `22` |
-| `DEPLOY_PATH` | optional, defaults to `Smart-schedule-IRNITU` (relative to the user's home) |
+The deploy directory defaults to `/home/deploy/Smart-schedule-IRNITU`; override it
+with the `DEPLOY_PATH` repository variable. No SSH secrets are needed any more.
 
 ## One-time server setup (files kept out of git)
 
