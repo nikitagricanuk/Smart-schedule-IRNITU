@@ -89,8 +89,9 @@ def _can_use_cached_schedule_data() -> bool:
 
 
 def _restore_cached_empty_schedule_docs(new_docs: list, collection: str, key_field: str) -> list:
+    # Без _id: ObjectId не сериализуется в JSON при подсчёте хеша коллекции.
     cached_docs = {
-        doc.get(key_field): doc
+        doc.get(key_field): {k: v for k, v in doc.items() if k != '_id'}
         for doc in mongo_storage.get_data(collection)
         if doc.get(key_field)
     }
