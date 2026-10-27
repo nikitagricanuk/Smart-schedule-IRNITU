@@ -6,18 +6,11 @@ from API.functions_api import full_schedule_in_str, full_schedule_in_str_prep, \
     get_one_day_schedule_in_str_prep, get_one_day_schedule_in_str, get_next_day_schedule_in_str, \
     get_next_day_schedule_in_str_prep, schedule_view_exams
 from API.functions_api import get_near_lesson, get_now_lesson, get_now_lesson_in_str_stud, get_now_lesson_in_str_prep
-from tools import keyboards, lesson_filters, statistics, schedule_processing
+from tools import keyboards, statistics, schedule_processing
 
 
 
 storage = MongodbService().get_instance()
-
-
-def _apply_hidden(schedule_doc, user):
-    """Убирает занятия, скрытые пользователем кнопкой [Скрыть занятия 🙈]."""
-    if not schedule_doc or not schedule_doc.get('schedule'):
-        return schedule_doc
-    return {**schedule_doc, 'schedule': lesson_filters.filter_schedule(schedule_doc['schedule'], user)}
 
 
 def groups_exam(group):
@@ -63,10 +56,10 @@ def get_schedule(bot, message, storage, tz):
         # Если курс нуль, тогда это преподаватель
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule(group=group), user)
+            schedule = storage.get_schedule(group=group)
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule_prep(group=group), user)
+            schedule = storage.get_schedule_prep(group=group)
         if schedule and schedule.get('schedule') == []:
             _send_schedule_not_published(bot=bot, chat_id=chat_id)
             statistics.add(action=data, storage=storage, tz=tz)
@@ -109,10 +102,10 @@ def get_schedule(bot, message, storage, tz):
         # Если курс нуль, тогда это преподаватель
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule(group=group), user)
+            schedule = storage.get_schedule(group=group)
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule_prep(group=group), user)
+            schedule = storage.get_schedule_prep(group=group)
         if schedule and schedule.get('schedule') == []:
             _send_schedule_not_published(bot=bot, chat_id=chat_id)
             statistics.add(action='Р Р°СЃРїРёСЃР°РЅРёРµ РЅР° СЃРµРіРѕРґРЅСЏ', storage=storage, tz=tz)
@@ -185,10 +178,10 @@ def get_schedule(bot, message, storage, tz):
         # Если курс нуль, тогда это преподаватель
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule(group=group), user)
+            schedule = storage.get_schedule(group=group)
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule_prep(group=group), user)
+            schedule = storage.get_schedule_prep(group=group)
         if schedule and schedule.get('schedule') == []:
             _send_schedule_not_published(bot=bot, chat_id=chat_id)
             statistics.add(action='Р Р°СЃРїРёСЃР°РЅРёРµ РЅР° Р·Р°РІС‚СЂР°', storage=storage, tz=tz)
@@ -235,10 +228,10 @@ def get_schedule(bot, message, storage, tz):
     elif 'Текущая' in data and user.get('group'):
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule(group=group), user)
+            schedule = storage.get_schedule(group=group)
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule_prep(group=group), user)
+            schedule = storage.get_schedule_prep(group=group)
         if schedule and schedule.get('schedule') == []:
             _send_schedule_not_published(bot=bot, chat_id=chat_id)
             statistics.add(action='РўРµРєСѓС‰Р°СЏ', storage=storage, tz=tz)
@@ -287,10 +280,10 @@ def get_schedule(bot, message, storage, tz):
     elif 'Следующая' in data and user.get('group'):
         if storage.get_user(chat_id=chat_id)['course'] != 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule(group=group), user)
+            schedule = storage.get_schedule(group=group)
         elif storage.get_user(chat_id=chat_id)['course'] == 'None':
             group = storage.get_user(chat_id=chat_id)['group']
-            schedule = _apply_hidden(storage.get_schedule_prep(group=group), user)
+            schedule = storage.get_schedule_prep(group=group)
         if schedule and schedule.get('schedule') == []:
             _send_schedule_not_published(bot=bot, chat_id=chat_id)
             statistics.add(action='РЎР»РµРґСѓСЋС‰Р°СЏ', storage=storage, tz=tz)
