@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 from pymongo import MongoClient
 from tools.logger import logger
 
@@ -141,6 +142,22 @@ class MongodbService(object):
         """сохраняет выбранную подгруппу пользователя (0 — вся группа, 1/2/3 — подгруппа)"""
         return self._db.users.update_one(filter={'chat_id': chat_id},
                                          update={'$set': {'subgroup': int(subgroup)}}, upsert=True)
+
+    def get_or_create_calendar_token(self, chat_id: int) -> str:
+        """Токен личной ссылки на календарь; создаётся при первом запросе."""
+        user = self.get_user(chat_id=chat_id) or {}
+        if user.get('calendar_token'):
+            return user['calendar_token']
+        token = secrets.token_urlsafe(16)
+        self._db.users.update_one(filter={'chat_id': chat_id}, update={'$set': {'calendar_token': token}})
+        return token
+
+    def set_hidden_lessons(self, chat_id: int, hidden_types: list, hidden_lessons: list):
+        """Сохраняет правила скрытия занятий (см. tools/lesson_filters.py)."""
+        return self._db.users.update_one(
+            filter={'chat_id': chat_id},
+            update={'$set': {'hidden_lesson_types': sorted(hidden_types), 'hidden_lessons': sorted(hidden_lessons)}},
+        )
 
     def get_user(self, chat_id: int):
         return self._db.users.find_one(filter={'chat_id': chat_id})

@@ -3,6 +3,7 @@ from urllib.parse import quote
 from flask import Flask, Response, abort, jsonify, request
 
 import ical_builder
+import lesson_filters
 from tools.logger import logger
 from tools.storage import MongodbService
 
@@ -65,6 +66,36 @@ def prep_calendar(prep_name):
 
     ics = ical_builder.build_calendar(schedule_doc, calendar_name=f'Расписание {prep_name}')
     return _ics_response(ics, prep_name)
+
+
+@app.route('/ical/u/<token>')
+@app.route('/ical/u/<token>.ics')
+def personal_calendar(token):
+    """Личная подписка: расписание группы/преподавателя пользователя с его
+    подгруппой и правилами скрытия занятий (настраиваются в боте)."""
+    user = storage.get_user_by_calendar_token(token)
+    if not user or not user.get('group'):
+        abort(404)
+
+    group_name = user['group']
+    is_student = user.get('course', 'None') != 'None'
+    if is_student:
+        schedule_doc = storage.get_schedule(group_name=group_name)
+    else:
+        schedule_doc = storage.get_schedule_prep(prep_name=group_name)
+    if not schedule_doc or not schedule_doc.get('schedule'):
+        logger.warning(f'Personal calendar requested for unknown or empty schedule="{group_name}"')
+        abort(404)
+
+    subgroup = int(user.get('subgroup') or 0) if is_student else 0
+    subgroup = subgroup if subgroup in (1, 2, 3) else 0
+    name = f'Расписание {group_name}'
+    if subgroup:
+        name += f' (подгруппа {subgroup})'
+
+    schedule_doc = {**schedule_doc, 'schedule': lesson_filters.filter_schedule(schedule_doc['schedule'], user)}
+    ics = ical_builder.build_calendar(schedule_doc, calendar_name=name, subgroup=subgroup)
+    return _ics_response(ics, group_name)
 
 
 if __name__ == '__main__':

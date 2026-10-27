@@ -30,3 +30,9 @@ class MongodbService(object):
     def get_schedule_prep(self, prep_name: str):
         """Возвращает документ расписания преподавателя."""
         return self._db.prepods_schedule.find_one(filter={'prep': prep_name})
+
+    def get_user_by_calendar_token(self, token: str):
+        """Пользователь по токену личной ссылки на календарь (выдаёт tg_bot)."""
+        if not token:
+            return None
+        return self._db.users.find_one(filter={'calendar_token': token})

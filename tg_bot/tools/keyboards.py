@@ -110,6 +110,21 @@ def make_inline_keyboard_choose_subgroup(current=0, during_registration=False):
     return markup
 
 
+def make_inline_keyboard_hidden_lessons(lesson_types, lessons, has_hidden=False):
+    """Переключатели скрытия занятий. lesson_types/lessons — списки (индекс, подпись, скрыто ли);
+    индекс уходит в callback_data (см. actions/main_menu/hidden_lessons.py)."""
+    markup = types.InlineKeyboardMarkup()
+    for index, label, hidden in lesson_types:
+        text = f'🚫 Все «{label}»' if hidden else f'✅ Все «{label}»'
+        markup.add(types.InlineKeyboardButton(text=text, callback_data=f'hide:t:{index}'))
+    for index, label, hidden in lessons:
+        text = f'🚫 {label}' if hidden else f'✅ {label}'
+        markup.add(types.InlineKeyboardButton(text=text, callback_data=f'hide:l:{index}'))
+    if has_hidden:
+        markup.add(types.InlineKeyboardButton(text='Показать всё', callback_data='hide:reset'))
+    return markup
+
+
 def make_inline_keyboard_notifications(time=0):
     """Кнопка 'Настройка уведомлений'"""
     markup = types.InlineKeyboardMarkup()
@@ -232,12 +247,13 @@ def make_keyboard_extra():
     btn2 = types.KeyboardButton('Напоминание 📣')
     btn3 = types.KeyboardButton('Подписка на календарь 📅')
     btn4 = types.KeyboardButton('Подгруппа 👥')
-    btn5 = types.KeyboardButton('Основное меню')
+    btn5 = types.KeyboardButton('Скрыть занятия 🙈')
+    btn6 = types.KeyboardButton('Основное меню')
     markup.add(btn1)
     markup.add(btn2)
     markup.add(btn3)
-    markup.add(btn4)
-    markup.add(btn5)
+    markup.add(btn4, btn5)
+    markup.add(btn6)
     return markup
 
 
