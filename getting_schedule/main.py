@@ -5,7 +5,6 @@ from functions import postgre_storage
 import data_conversion
 from functions.mongo_storage import MongodbService
 from functions.logger import logger
-from functions.istu_website_parser import ISTUScheduleParser
 from functions.istu_api_client import ISTUApiClient
 
 from pymongo.errors import PyMongoError
@@ -22,7 +21,7 @@ import requests
 GETTING_SCHEDULE_TIME_HOURS = float(os.environ.get('GETTING_SCHEDULE_TIME_HOURS')
                                     if os.environ.get('GETTING_SCHEDULE_TIME_HOURS')
                                     else 1) * 60 * 60
-# Источник расписания: istu_api (по умолчанию) | istu_website | postgres.
+# Источник расписания: istu_api (по умолчанию) | postgres.
 SCHEDULE_SOURCE = os.environ.get('SCHEDULE_SOURCE', 'istu_api').lower().strip()
 
 mongo_storage = MongodbService().get_instance()
@@ -58,7 +57,7 @@ def _parse_status_datetime(value: str):
     return parsed.astimezone(timezone.utc)
 
 
-def _can_use_cached_website_data() -> bool:
+def _can_use_cached_schedule_data() -> bool:
     status = mongo_storage.get_status('getting_schedule')
     if not status:
         return False
@@ -83,7 +82,7 @@ def _can_use_cached_website_data() -> bool:
         return False
 
     logger.info(
-        f'Using cached website schedule data from {status.get("last_success_at")} '
+        f'Using cached schedule data from {status.get("last_success_at")} '
         f'(age={round(cache_age_sec, 1)} sec); skip parsing on this start.'
     )
     return True
@@ -173,14 +172,14 @@ def _save_collection_if_changed(
     logger.info(f'{hash_name}: data updated')
 
 
-def processing_schedule_from_website():
-    """Загрузка расписания ИРНИТУ (через API или парсингом сайта) и сохранение в MongoDB."""
-    logger.info(f'Start processing_schedule_from_website (source={SCHEDULE_SOURCE})...')
+def processing_schedule_from_api():
+    """Загрузка расписания ИРНИТУ через API и сохранение в MongoDB."""
+    logger.info(f'Start processing_schedule_from_api (source={SCHEDULE_SOURCE})...')
     start_time = time.time()
 
     _update_runtime_status(
         state='running',
-        stage='starting_website_parser',
+        stage='starting_api_client',
         started_at=_status_timestamp(),
     )
 
@@ -191,14 +190,9 @@ def processing_schedule_from_website():
             **payload,
         )
 
-    use_api = SCHEDULE_SOURCE != 'istu_website'
-    if use_api and not os.environ.get('ISTU_API_KEY', '').strip():
-        logger.warning('ISTU_API_KEY is not set. Fallback to ISTU website parser.')
-        use_api = False
-    if use_api:
-        parser = ISTUApiClient(progress_callback=parser_progress_callback)
-    else:
-        parser = ISTUScheduleParser(progress_callback=parser_progress_callback)
+    if not os.environ.get('ISTU_API_KEY', '').strip():
+        raise RuntimeError('ISTU_API_KEY is not set: cannot load schedule from ISTU API')
+    parser = ISTUApiClient(progress_callback=parser_progress_callback)
     data = parser.parse()
     data['schedule'] = _restore_cached_empty_schedule_docs(
         new_docs=data['schedule'],
@@ -266,7 +260,7 @@ def processing_schedule_from_website():
     finished_at = _status_timestamp()
     _update_runtime_status(
         state='success',
-        stage='website_processing_completed',
+        stage='api_processing_completed',
         finished_at=finished_at,
         last_success_at=finished_at,
         last_duration_sec=round(end_time - start_time, 2),
@@ -274,7 +268,7 @@ def processing_schedule_from_website():
         parsed_teachers=len(data['prepods_schedule']),
         parsed_auditories=len(data['auditories_schedule']),
     )
-    logger.info(f'Processing_schedule_from_website successful. Operation time: {end_time - start_time} seconds.')
+    logger.info(f'Processing_schedule_from_api successful. Operation time: {end_time - start_time} seconds.')
 
 
 def processing_institutes():
@@ -488,14 +482,14 @@ def main():
             else:
                 if SCHEDULE_SOURCE == 'postgres' and not os.environ.get('PG_DB_HOST'):
                     logger.warning('SCHEDULE_SOURCE=postgres, but PG_DB_HOST is empty. Fallback to ISTU API.')
-                if _can_use_cached_website_data():
+                if _can_use_cached_schedule_data():
                     _update_runtime_status(
                         state='success',
-                        stage='using_cached_website_data',
+                        stage='using_cached_schedule_data',
                         cache_used=True,
                     )
                 else:
-                    processing_schedule_from_website()
+                    processing_schedule_from_api()
         except Exception as e:
             cycle_failed = True
             _update_runtime_status(

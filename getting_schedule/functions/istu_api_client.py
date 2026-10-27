@@ -1,7 +1,8 @@
 """Клиент официального API расписания ИРНИТУ (https://schedule.istu.edu/api/).
 
-Заменяет парсинг сайта istu.edu/raspisanie: отдаёт данные в том же формате, что и
-``ISTUScheduleParser.parse()``, поэтому остальной код (main.py, хранилище) не меняется.
+Единственный источник расписания (парсинг сайта istu.edu/raspisanie удалён):
+``parse()`` отдаёт институты, группы, курсы, преподавателей и расписания групп,
+преподавателей и аудиторий в формате, который сохраняет main.py.
 
 Устройство API (выведено из работы веб-интерфейса, документации нет):
   * авторизация — заголовок ``Authorization: Token <ключ>``;
@@ -27,7 +28,7 @@ import pytz
 import requests
 
 from functions import schedule_tools
-from functions.istu_website_parser import (
+from functions.schedule_builder import (
     DEFAULT_MAX_WORKERS,
     DEFAULT_MIN_SUCCESS_RATE,
     DEFAULT_PROGRESS_UPDATES,
