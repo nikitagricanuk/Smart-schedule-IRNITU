@@ -12,10 +12,12 @@ concurrency:
 
 # Both jobs run on the self-hosted runner on novsrv (the production server),
 # registered for this repository under ~/actions-runner as the deploy user.
+# Only this push-to-master workflow may use it: the repo is public, so PR checks
+# (checkers.yml) stay on GitHub-hosted runners and never run fork code on the server.
 jobs:
   quality:
     name: Quality gate
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, novsrv]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
   deploy:
     name: Deploy to server
     needs: quality
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, novsrv]
     environment: production
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/deploy/Smart-schedule-IRNITU' }}
