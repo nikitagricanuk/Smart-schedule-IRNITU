@@ -112,21 +112,41 @@ def is_transfer(query: Optional[Dict[str, Any]], title: str) -> bool:
     return bool(_LOOKS_LIKE_TRANSFER_RE.search(title or ''))
 
 
-def transfer_target_auditories(query: Optional[Dict[str, Any]], auditory_names: Dict[int, str]) -> List[str]:
-    """Новая аудитория из приказа о переносе (связанный query type 1).
+def transfer_target_auditories(
+    item: Dict[str, Any],
+    query: Optional[Dict[str, Any]],
+    auditory_names: Dict[int, str],
+    from_aud: Optional[str] = None,
+) -> List[str]:
+    """Аудитория, куда переехала пара.
 
-    В самой карточке переноса auditories_ids — заглушка, поэтому аудиторию берём
-    из приказа: сначала по id, затем из текста "... в В-104".
+    Проверено на данных API (28.10.2026, ИСТб-24-2): auditories_ids самой карточки
+    переноса — новая аудитория (474 = В-104), а auds связанного приказа (query
+    type 1) — старая (825 = Ж-312), хотя текст приказа кончается "... в В-104".
+    Поэтому сначала берём аудиторию карточки, затем текст приказа, затем его auds,
+    и никогда не возвращаем аудиторию из "перенос из ...".
     """
-    for related in (query or {}).get('related_queries') or []:
-        if related.get('type') != QUERY_TYPE_ORDER:
-            continue
-        auds = [auditory_names[aud_id] for aud_id in related.get('auds') or [] if aud_id in auditory_names]
-        if auds:
-            return auds
+    old = normalize_name(from_aud) if from_aud else None
+
+    def usable(names):
+        return [name for name in names if name and normalize_name(name) != old]
+
+    card = usable([auditory_names[aud_id] for aud_id in item.get('auditories_ids') or [] if aud_id in auditory_names])
+    if card:
+        return card
+
+    orders = [related for related in (query or {}).get('related_queries') or []
+              if related.get('type') == QUERY_TYPE_ORDER]
+    for related in orders:
         match = _ORDER_TARGET_AUD_RE.search(' '.join((related.get('title') or '').split()))
         if match:
-            return [match.group(1).strip(' .,')]
+            by_text = usable([match.group(1).strip(' .,')])
+            if by_text:
+                return by_text
+    for related in orders:
+        by_id = usable([auditory_names[aud_id] for aud_id in related.get('auds') or [] if aud_id in auditory_names])
+        if by_id:
+            return by_id
     return []
 
 

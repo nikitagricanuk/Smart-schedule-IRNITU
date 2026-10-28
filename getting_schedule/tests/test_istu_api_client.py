@@ -131,11 +131,12 @@ class TestRoomTransfer(unittest.TestCase):
         self.client = ISTUApiClient()
         self.titles = {478236: 'ИСТб-24-2'}
         self.teachers = {5160: 'Гордин А.С.'}
-        self.auds = {474: 'Ж-312', 825: 'В-104', 909: 'Ж-313'}
+        # Реальные id из справочника auditory/ (проверено 28.10.2026).
+        self.auds = {474: 'В-104', 825: 'Ж-312', 909: 'Ж-313'}
 
     def _lab(self, **overrides):
         lab = _item(id=13430001, day='3', para=2, everyweek=1, nt=3, ngroup=2, title='Основы информационной безопасности',
-                    groups=[478236], teachers_ids=[5160], auditories_ids=[474], auditories_verbose='Ж-312')
+                    groups=[478236], teachers_ids=[5160], auditories_ids=[825], auditories_verbose='Ж-312')
         lab.update(overrides)
         return lab
 

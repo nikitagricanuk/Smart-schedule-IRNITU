@@ -292,7 +292,7 @@ class ISTUApiClient:
                 # а вид занятия (nt) у переносов всегда "лекция".
                 if transfer["subgroup"] is not None:
                     subgroup = transfer["subgroup"]
-                target_auditories = transfer_target_auditories(query, auditory_names)
+                target_auditories = transfer_target_auditories(item, query, auditory_names, transfer["from_aud"])
         lesson_info = _build_info(LESSON_TYPES.get(item.get("nt"), ""), str(subgroup) if subgroup else None)
 
         auditories = target_auditories or [

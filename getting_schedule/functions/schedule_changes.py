@@ -92,10 +92,19 @@ def group_transfers(doc: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return result
 
 
+def _minutes(value) -> int:
+    try:
+        hours, minutes = str(value).split(':')
+        return int(hours) * 60 + int(minutes)
+    except ValueError:
+        return 0
+
+
 def detect_new_transfers(
     old_docs: List[Dict[str, Any]],
     new_docs: List[Dict[str, Any]],
     today: date,
+    now_time: str = '0:00',
 ) -> List[Dict[str, Any]]:
     """Новые (ещё не наступившие) переносы: [{'group': ..., 'transfer': {...}}].
 
@@ -117,7 +126,12 @@ def detect_new_transfers(
         for key, item in group_transfers(doc).items():
             if key in old_keys:
                 continue
-            if max(item.get('date') or '', item.get('to_date') or '') < today_iso:
+            # Уже прошедшие переносы (и исходное занятие, и новое — в прошлом) не рассылаем.
+            latest = max(
+                (item.get('date') or '', _minutes(item.get('time'))),
+                (item.get('to_date') or '', _minutes(item.get('to_time'))),
+            )
+            if latest < (today_iso, _minutes(now_time)):
                 continue
             result.append({'group': group, 'transfer': item})
     return result
