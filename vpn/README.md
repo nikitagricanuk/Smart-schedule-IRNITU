@@ -1,4 +1,4 @@
-# VPN (AmneziaWG) для tg_bot
+# VPN (AmneziaWG) для tg_bot и notification_service
 
 Контейнер `vpn` собирается из `vpn/Dockerfile` (база —
 [`amneziavpn/amneziawg-go`](https://github.com/amnezia-vpn/amneziawg-go),
@@ -9,8 +9,9 @@ Telegram API) идёт через обфусцированный AmneziaWG-ту�
 `mongodb` и `functions_api` продолжают идти напрямую по docker-сети (для неё
 есть более специфичный маршрут, чем маршрут по умолчанию через `awg0`).
 
-Другие сервисы (`getting_schedule`, `functions_api`, `calendar_service`)
-через VPN не ходят.
+Так же подключён `notification_service` (напоминания и уведомления об
+изменении расписания тоже отправляются в Telegram). Остальные сервисы
+(`getting_schedule`, `functions_api`, `calendar_service`) через VPN не ходят.
 
 ## Настройка
 

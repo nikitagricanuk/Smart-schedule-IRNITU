@@ -76,10 +76,17 @@ class MongodbService(object):
         """возвращает необработанные записи об изменении расписания"""
         return list(self._db.schedule_changes.find(filter={'notified': False}))
 
-    def mark_schedule_change_notified(self, change_id):
+    def mark_schedule_change_notified(self, change_id, gave_up=False):
         """помечает запись об изменении расписания как обработанную"""
+        update = {'notified': True}
+        if gave_up:
+            update['gave_up'] = True
+        return self._db.schedule_changes.update_one(filter={'_id': change_id}, update={'$set': update})
+
+    def add_schedule_change_delivery(self, change_id, chat_id):
+        """запоминает, что уведомление об изменении расписания доставлено пользователю"""
         return self._db.schedule_changes.update_one(
-            filter={'_id': change_id}, update={'$set': {'notified': True}}
+            filter={'_id': change_id}, update={'$addToSet': {'delivered_to': chat_id}}
         )
 
     def get_tg_users_for_group(self, group: str) -> list:

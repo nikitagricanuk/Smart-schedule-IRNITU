@@ -59,6 +59,11 @@ services:
 
   notification_service:
     build: notification_service/
+    # Как и tg_bot, ходит в Telegram API через VPN: напрямую api.telegram.org
+    # с сервера недоступен. mongodb/functions_api доступны по docker-сети.
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
     logging:
       options:
         max-size: "200M"
