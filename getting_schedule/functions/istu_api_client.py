@@ -17,6 +17,7 @@
     счёта недель (см. functions_api/functions/find_week.py), поэтому чётность
     считается по дате, а не берётся из ответа.
 """
+import html
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -39,6 +40,16 @@ from functions.schedule_builder import (
     _normalize_spaces,
     _sort_day_lessons,
     build_teacher_and_auditory_schedules,
+)
+from functions.transfers import (
+    DAY_NAMES,
+    QUERY_TYPE_TRANSFER,
+    add_transfer,
+    find_original_lesson,
+    is_transfer,
+    make_transfer_record,
+    parse_transfer_title,
+    transfer_target_auditories,
 )
 from functions.logger import logger
 
@@ -99,6 +110,10 @@ def candidate_weeks(today: date) -> Dict[str, List[date]]:
         monday = current + timedelta(weeks=offset)
         result[week_parity_of(monday)].append(monday)
     return result
+
+
+def _has_transfers(payload: Dict[str, Any]) -> bool:
+    return any(query.get("type") == QUERY_TYPE_TRANSFER for query in payload.get("queries") or [])
 
 
 class ISTUApiClient:
@@ -259,18 +274,28 @@ class ISTUApiClient:
             return None
 
         subgroup = item.get("ngroup")
-        lesson_info = _build_info(LESSON_TYPES.get(item.get("nt"), ""), str(subgroup) if subgroup else None)
-
+        transfer = None
+        target_date = None
+        target_auditories: List[str] = []
         if item.get("type") == "query":
-            # Разовый перенос: формат имени совпадает с тем, что раньше приходило с сайта и
-            # что разбирает calendar_service ("Разовый перенос ..., на YYYY.MM.DD перенос").
+            # Разовое занятие: проектная деятельность или перенос регулярной пары. Показываем
+            # его только в свой день (поле date), а не каждую неделю этой чётности.
+            title = html.unescape(title)
             query = queries_by_id.get(item.get("id"))
             target = query["dt"] if query and query.get("dt") else (monday + timedelta(days=day_number - 1)).isoformat()
             target_date = datetime.strptime(target, "%Y-%m-%d").date()
-            title = f"Разовый перенос {title}, на {target_date.strftime('%Y.%m.%d')} перенос"
             week = week_parity_of(_monday_of(target_date))
+            day_name = DAY_NAMES[target_date.weekday()]
+            if is_transfer(query, title):
+                transfer = parse_transfer_title(title)
+                # Подгруппу берём из текста карточки ("2-ая подгруппа ..."): в ngroup её нет,
+                # а вид занятия (nt) у переносов всегда "лекция".
+                if transfer["subgroup"] is not None:
+                    subgroup = transfer["subgroup"]
+                target_auditories = transfer_target_auditories(query, auditory_names)
+        lesson_info = _build_info(LESSON_TYPES.get(item.get("nt"), ""), str(subgroup) if subgroup else None)
 
-        auditories = [
+        auditories = target_auditories or [
             auditory_names[aud_id] for aud_id in (item.get("auditories_ids") or []) if aud_id in auditory_names
         ]
         if not auditories:
@@ -298,7 +323,56 @@ class ISTUApiClient:
             "groups": groups,
             "prep_meta": prep_meta,
             "prep_names": prep_names,
+            "date": target_date.isoformat() if target_date else None,
+            "transfer": transfer,
         }
+
+    @staticmethod
+    def _attach_transfer(
+        event: Dict[str, Any],
+        day_to_lessons: Dict[str, List[Dict[str, Any]]],
+        events: List[Dict[str, Any]],
+    ) -> bool:
+        """Привязывает разовый перенос к исходной регулярной паре группы.
+
+        Возвращает True, если пара нашлась: тогда у неё (и у её событий, из которых
+        строятся расписания преподавателей и аудиторий) появляется запись в
+        ``transfers``, а отдельной карточки переноса в расписании группы нет.
+        """
+        transfer = event["transfer"]
+        if not transfer:
+            return False
+        target_date = datetime.strptime(event["date"], "%Y-%m-%d").date()
+        original_date = transfer["from_date"] or target_date
+        original_time = PARA_TIMES.get(transfer["from_para"]) if transfer["from_para"] else None
+        original = find_original_lesson(day_to_lessons, transfer, original_date, event["time"], original_time)
+        if original is None:
+            return False
+
+        record = make_transfer_record(original_date, target_date, event["time"], event["aud"], transfer)
+        add_transfer(original, record)
+        for other in events:
+            if other.get("date"):
+                continue
+            same_lesson = (
+                other["day"] == DAY_NAMES[original_date.weekday()]
+                and other["time"] == original["time"]
+                and other["week"] == original["week"]
+                and other["name"] == original["name"]
+                and other["info"] == original["info"]
+            )
+            if same_lesson:
+                add_transfer(other, record)
+
+        # В расписании аудитории, куда переехала пара, она появляется разовым занятием.
+        events.append({
+            **event,
+            "name": original["name"],
+            "info": original["info"],
+            "transfer": None,
+            "aud_only": True,
+        })
+        return True
 
     def _parse_group(
         self,
@@ -310,41 +384,48 @@ class ISTUApiClient:
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         day_to_lessons: Dict[str, List[Dict[str, Any]]] = {}
         events: List[Dict[str, Any]] = []
-        seen_every_week = set()
 
+        seen_regular = set()
         for parity, monday, payload in self._fetch_group_weeks(group["group_id"], today):
-            queries_by_id = {query["id"]: query for query in payload.get("queries") or []}
-            for item in payload.get("schedule") or []:
-                if item.get("type") == "query":
-                    continue  # разовые переносы собираются отдельным запросом ниже
-                is_every_week = item.get("everyweek") == 2 and item.get("type") != "query"
-                week = "all" if is_every_week else parity
-                event = self._lesson_from_item(
-                    item, week, monday, queries_by_id, group_titles, teacher_names, auditory_names, group["name"]
-                )
-                if not event:
-                    continue
+            payloads = [(monday, payload)]
+            if _has_transfers(payload):
+                # Пары, перенесённые на этой неделе, API из неё убирает. Чтобы такая пара
+                # не пропала из регулярного расписания, добираем следующую неделю той же чётности.
+                next_monday = monday + timedelta(weeks=2)
+                payloads.append((next_monday, self._fetch_group_week(group["group_id"], next_monday)))
 
-                # Еженедельная пара приходит в обоих запросах — оставляем одну копию.
-                if is_every_week:
-                    signature = (event["day"], event["time"], event["name"], event["info"],
-                                 tuple(event["aud"]), tuple(event["prep_names"]))
-                    if signature in seen_every_week:
+            for week_monday, week_payload in payloads:
+                queries_by_id = {query["id"]: query for query in week_payload.get("queries") or []}
+                for item in week_payload.get("schedule") or []:
+                    if item.get("type") == "query":
+                        continue  # разовые занятия собираются отдельным запросом ниже
+                    week = "all" if item.get("everyweek") == 2 else parity
+                    event = self._lesson_from_item(
+                        item, week, week_monday, queries_by_id, group_titles, teacher_names, auditory_names,
+                        group["name"],
+                    )
+                    if not event:
                         continue
-                    seen_every_week.add(signature)
 
-                events.append(event)
-                _merge_group_lesson(
-                    day_to_lessons.setdefault(event["day"], []),
-                    {
-                        "time": event["time"],
-                        "week": event["week"],
-                        "name": event["name"],
-                        "aud": event["aud"],
-                        "info": event["info"],
-                        "prep": event["prep_names"],
-                    },
-                )
+                    # Еженедельная пара приходит в обоих запросах — оставляем одну копию.
+                    signature = (event["day"], event["week"], event["time"], event["name"], event["info"],
+                                 tuple(event["aud"]), tuple(event["prep_names"]))
+                    if signature in seen_regular:
+                        continue
+                    seen_regular.add(signature)
+
+                    events.append(event)
+                    _merge_group_lesson(
+                        day_to_lessons.setdefault(event["day"], []),
+                        {
+                            "time": event["time"],
+                            "week": event["week"],
+                            "name": event["name"],
+                            "aud": event["aud"],
+                            "info": event["info"],
+                            "prep": event["prep_names"],
+                        },
+                    )
 
         transfers = self._fetch_group_transfers(group["group_id"], today)
         queries_by_id = {query["id"]: query for query in transfers.get("queries") or []}
@@ -357,6 +438,8 @@ class ISTUApiClient:
             )
             if not event:
                 continue
+            if self._attach_transfer(event, day_to_lessons, events):
+                continue
             events.append(event)
             _merge_group_lesson(
                 day_to_lessons.setdefault(event["day"], []),
@@ -367,6 +450,8 @@ class ISTUApiClient:
                     "aud": event["aud"],
                     "info": event["info"],
                     "prep": event["prep_names"],
+                    "date": event["date"],
+                    **({"transfer": True} if event["transfer"] else {}),
                 },
             )
 

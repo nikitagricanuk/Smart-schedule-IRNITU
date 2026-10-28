@@ -3,7 +3,9 @@ import platform
 import time
 from datetime import datetime, timedelta
 import pytz
-from time import strptime
+
+from functions.dated_lessons import DAY_ORDER, lessons_on_date, transfer_note, week_dates
+from functions.find_week import find_week
 
 TZ_IRKUTSK = pytz.timezone('Asia/Irkutsk')
 # определяем на Linux или на Windows мы запускаемся
@@ -72,279 +74,102 @@ def schedule_view_exams(schedule):
     return schedule_str
 
 
-def full_schedule_in_str(schedule: list, week: str) -> list:
+def _monday_for_week(week: str):
+    """Понедельник недели ``week``: текущей, если чётность совпадает, иначе следующей
+    (бот показывает расписание на текущую и следующую неделю)."""
+    today = datetime.now(TZ_IRKUTSK).date()
+    monday = today - timedelta(days=today.weekday())
+    if week in ('odd', 'even') and week != find_week():
+        monday += timedelta(days=7)
+    return monday
+
+
+def _lesson_str(lesson: dict, tail: str, show_aud: bool = True) -> str:
+    """Одна пара в тексте расписания; tail — преподаватель (для студентов) или группы."""
+    name = lesson['name']
+    time = lesson['time']
+    if name == 'свободно':
+        return f'{time}\n{name}'
+
+    info = lesson['info'].replace(",", "")
+    aud = ''
+    if show_aud and lesson["aud"] and lesson["aud"][0]:
+        aud = f'Аудитория: {", ".join(lesson["aud"])}\n'
+    text = f'{time}\n' \
+           f'{aud}' \
+           f'👉{name}\n' \
+           f'{info} {tail}'
+    note = transfer_note(lesson)
+    if note:
+        text += f'\n{note}'
+    return text
+
+
+def _stud_tail(lesson: dict) -> str:
+    return ', '.join(lesson.get('prep') or [])
+
+
+def _prep_tail(lesson: dict) -> str:
+    return ', '.join(lesson.get('groups') or [])
+
+
+def _day_in_str(schedule: list, day, week: str, tail, marker: str, aud=None) -> str:
+    """Расписание одного дня ``day`` (с учётом переносов) или '' если пар нет."""
+    lessons = lessons_on_date(schedule, day, week)
+    if not lessons:
+        return ''
+    lessons_str = '-------------------------------------------\n'
+    for lesson in lessons:
+        lessons_str += _lesson_str(lesson, tail(lesson), show_aud=not aud)
+        # Если выводим расписание аудитории, то добавляем информацию о преподавателе.
+        if aud and lesson['name'] != 'свободно' and lesson.get('prep') and lesson['prep'][0]:
+            lessons_str += f'\n{", ".join(lesson["prep"])}'
+        lessons_str += '\n-------------------------------------------\n'
+    day_name = DAY_ORDER[day.weekday()].upper()
+    return f'\n{marker}{day_name}{marker}\n{lessons_str}'
+
+
+def _full_week_in_str(schedule: list, week: str, monday, tail, aud=None) -> list:
+    monday = datetime.strptime(monday, '%Y-%m-%d').date() if monday else _monday_for_week(week)
+    today = datetime.now(TZ_IRKUTSK).date()
     schedule_str = []
-    day_now = datetime.now(TZ_IRKUTSK).strftime('%A').lower()
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        lessons = one_day['lessons']
-        lesson_counter = 0  # Количество пар в дне.
-        lessons_str = '-------------------------------------------\n'
-
-        for lesson in lessons:
-            name = lesson['name']
-            time = lesson['time']
-            lesson_week = lesson['week']
-
-            # смотрим только на пары из нужной недели
-            if lesson_week != week and lesson_week != 'all':
-                continue
-
-            if name == 'свободно':
-                lessons_str += f'{time}\n' \
-                               f'{name}'
-
-            else:
-                time = lesson['time']
-                info = lesson['info'].replace(",", "")
-                prep = ', '.join(lesson['prep'])
-                aud = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                lessons_str += f'{time}\n' \
-                               f'{aud}' \
-                               f'👉{name}\n' \
-                               f'{info} {prep}'
-
-            lessons_str += '\n-------------------------------------------\n'
-
-            lesson_counter += 1
-
-        # Проверка, что день не пустой
-        if lesson_counter:
-            if day_now == day.lower():
-                schedule_str.append(f'\n🍏{day}🍏\n'
-                                    f'{lessons_str}')
-            else:
-                schedule_str.append(f'\n🍎{day}🍎\n'
-                                    f'{lessons_str}')
+    for day_name, day in week_dates(monday).items():
+        marker = '🍏' if day == today else '🍎'
+        day_str = _day_in_str(schedule, day, week, tail, marker, aud=aud)
+        if day_str:
+            schedule_str.append(day_str)
     return schedule_str
 
 
+def full_schedule_in_str(schedule: list, week: str, monday: str = None) -> list:
+    return _full_week_in_str(schedule, week, monday, _stud_tail)
+
+
 def get_one_day_schedule_in_str(schedule: list, week: str) -> str:
-    day_now = datetime.now(TZ_IRKUTSK).strftime('%A')
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        if day.lower() == day_now.lower():
-            lessons = one_day['lessons']
-
-            lesson_counter = 0  # Количество пар в дне.
-            lessons_str = '-------------------------------------------\n'
-            for lesson in lessons:
-                name = lesson['name']
-                time = lesson['time']
-                lesson_week = lesson['week']
-
-                # смотрим только на пары из нужной недели
-                if lesson_week != week and lesson_week != 'all':
-                    continue
-
-                if name == 'свободно':
-                    lessons_str += f'{time}\n' \
-                                   f'{name}'
-
-                else:
-                    aud = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                    time = lesson['time']
-                    info = lesson['info'].replace(",", "")
-                    prep = ', '.join(lesson['prep'])
-
-                    lessons_str += f'{time}\n' \
-                                   f'{aud}' \
-                                   f'👉{name}\n' \
-                                   f'{info} {prep}'
-                lessons_str += '\n-------------------------------------------\n'
-                lesson_counter += 1
-
-            if lesson_counter:
-                return f'\n🍏{day}🍏\n{lessons_str}'
-            else:
-                return ''
+    today = datetime.now(TZ_IRKUTSK).date()
+    return _day_in_str(schedule, today, week, _stud_tail, '🍏')
 
 
 def get_next_day_schedule_in_str(schedule: list, week: str) -> str:
     week = _week_for_tomorrow(week)
-    day_tomorrow = (datetime.now(TZ_IRKUTSK) + timedelta(days=1)).strftime('%A')
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        if day.lower() == day_tomorrow.lower():
-            lessons = one_day['lessons']
-
-            lesson_counter = 0  # Количество пар в дне.
-            lessons_str = '-------------------------------------------\n'
-            for lesson in lessons:
-                name = lesson['name']
-                time = lesson['time']
-                lesson_week = lesson['week']
-
-                # смотрим только на пары из нужной недели
-                if lesson_week != week and lesson_week != 'all':
-                    continue
-
-                if name == 'свободно':
-                    lessons_str += f'{time}\n' \
-                                   f'{name}'
-
-                else:
-                    aud = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                    time = lesson['time']
-                    info = lesson['info'].replace(",", "")
-                    prep = ', '.join(lesson['prep'])
-
-                    lessons_str += f'{time}\n' \
-                                   f'{aud}' \
-                                   f'👉{name}\n' \
-                                   f'{info} {prep}'
-                lessons_str += '\n-------------------------------------------\n'
-                lesson_counter += 1
-
-            if lesson_counter:
-                return f'\n🍎{day}🍎\n{lessons_str}'
-            else:
-                return ''
+    tomorrow = datetime.now(TZ_IRKUTSK).date() + timedelta(days=1)
+    return _day_in_str(schedule, tomorrow, week, _stud_tail, '🍎')
 
 
 # Расписание для преподавателей
 def get_one_day_schedule_in_str_prep(schedule: list, week: str) -> str:
-    day_now = datetime.now(TZ_IRKUTSK).strftime('%A')
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        if day.lower() == day_now.lower():
-            lessons = one_day['lessons']
-
-            lesson_counter = 0  # Количество пар в дне.
-            lessons_str = '-------------------------------------------\n'
-            for lesson in lessons:
-                name = lesson['name']
-                time = lesson['time']
-                lesson_week = lesson['week']
-
-                # смотрим только на пары из нужной недели
-                if lesson_week != week and lesson_week != 'all':
-                    continue
-
-                if name == 'свободно':
-                    lessons_str += f'{time}\n' \
-                                   f'{name}'
-
-                else:
-                    aud = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                    time = lesson['time']
-                    info = lesson['info'].replace(",", "")
-                    groups = ', '.join(lesson['groups'])
-
-                    lessons_str += f'{time}\n' \
-                                   f'{aud}' \
-                                   f'👉{name}\n' \
-                                   f'{info} {groups}'
-                lessons_str += '\n-------------------------------------------\n'
-                lesson_counter += 1
-
-            if lesson_counter:
-                return f'\n🍏{day}🍏\n{lessons_str}'
-            else:
-                return ''
+    today = datetime.now(TZ_IRKUTSK).date()
+    return _day_in_str(schedule, today, week, _prep_tail, '🍏')
 
 
 def get_next_day_schedule_in_str_prep(schedule: list, week: str) -> str:
     week = _week_for_tomorrow(week)
-    day_tomorrow = (datetime.now(TZ_IRKUTSK) + timedelta(days=1)).strftime('%A')
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        if day.lower() == day_tomorrow.lower():
-            lessons = one_day['lessons']
-
-            lesson_counter = 0  # Количество пар в дне.
-            lessons_str = '-------------------------------------------\n'
-            for lesson in lessons:
-                name = lesson['name']
-                time = lesson['time']
-                lesson_week = lesson['week']
-
-                # смотрим только на пары из нужной недели
-                if lesson_week != week and lesson_week != 'all':
-                    continue
-
-                if name == 'свободно':
-                    lessons_str += f'{time}\n' \
-                                   f'{name}'
-
-                else:
-                    aud = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                    time = lesson['time']
-                    info = lesson['info'].replace(",", "")
-                    groups = ', '.join(lesson['groups'])
-
-                    lessons_str += f'{time}\n' \
-                                   f'{aud}' \
-                                   f'👉{name}\n' \
-                                   f'{info} {groups}'
-                lessons_str += '\n-------------------------------------------\n'
-                lesson_counter += 1
-
-            if lesson_counter:
-                return f'\n🍎{day}🍎\n{lessons_str}'
-            else:
-                return ''
+    tomorrow = datetime.now(TZ_IRKUTSK).date() + timedelta(days=1)
+    return _day_in_str(schedule, tomorrow, week, _prep_tail, '🍎')
 
 
-def full_schedule_in_str_prep(schedule: list, week: str, aud=None) -> list:
-    schedule_str = []
-    day_now = datetime.now(TZ_IRKUTSK).strftime('%A').lower()
-    for one_day in schedule:
-        day = one_day['day'].upper()
-        lessons = one_day['lessons']
-        lesson_counter = 0  # Количество пар в дне.
-        lessons_str = '-------------------------------------------\n'
-        for lesson in lessons:
-            name = lesson['name']
-            time = lesson['time']
-            lesson_week = lesson['week']
-
-            # смотрим только на пары из нужной недели
-            if lesson_week != week and lesson_week != 'all':
-                continue
-
-            if name == 'свободно':
-                lessons_str += f'{time}\n' \
-                               f'{name}'
-
-            else:
-
-                time = lesson['time']
-                info = lesson['info'].replace(",", "")
-                groups = ', '.join(lesson['groups'])
-
-                # Если выводим расписание аудитории, то не нужно выводить аудиторию в каждой паре.
-                if aud:
-                    aud_info = ''
-                else:
-                    aud_info = f'Аудитория: {", ".join(lesson["aud"])}\n' if lesson["aud"] and lesson["aud"][0] else ''
-
-                lessons_str += f'{time}\n' \
-                               f'{aud_info}' \
-                               f'👉{name}\n' \
-                               f'{info} {groups}'
-
-                # Если выводим расписание аудитории, то добавляем информацию о преподавателе.
-                if aud:
-                    lessons_str += f'\n{", ".join(lesson["prep"])}' if lesson['prep'] and lesson['prep'][0] else ''
-
-            lessons_str += '\n-------------------------------------------\n'
-            lesson_counter += 1
-
-        if lesson_counter:
-            if day_now == day.lower():
-                schedule_str.append(f'\n🍏{day}🍏\n'
-                                    f'{lessons_str}')
-            else:
-                schedule_str.append(f'\n🍎{day}🍎\n'
-                                    f'{lessons_str}')
-
-    return schedule_str
+def full_schedule_in_str_prep(schedule: list, week: str, aud=None, monday: str = None) -> list:
+    return _full_week_in_str(schedule, week, monday, _prep_tail, aud=aud)
 
 
 def get_now_lesson_in_str_stud(now_lessons: list):
@@ -363,6 +188,9 @@ def get_now_lesson_in_str_stud(now_lessons: list):
                            f'{aud}' \
                            f'👉{name}\n' \
                            f'{info} {prep}\n'
+        note = transfer_note(near_lesson)
+        if note:
+            now_lessons_str += f'{note}\n'
     now_lessons_str += '-------------------------------------------\n'
     return now_lessons_str
 
@@ -383,5 +211,8 @@ def get_now_lesson_in_str_prep(now_lessons: list):
                            f'{aud}' \
                            f'👉{name}\n' \
                            f'{info} {groups}\n'
+        note = transfer_note(near_lesson)
+        if note:
+            now_lessons_str += f'{note}\n'
     now_lessons_str += '-------------------------------------------\n'
     return now_lessons_str

@@ -6,6 +6,7 @@ from unittest import mock
 os.environ.setdefault('ISTU_API_KEY', 'test-key')
 
 from functions.istu_api_client import ISTUApiClient, candidate_weeks, week_parity_of
+from functions.schedule_builder import build_teacher_and_auditory_schedules
 
 
 def _item(**overrides):
@@ -89,25 +90,28 @@ class TestApiClient(unittest.TestCase):
         self.assertEqual(lesson['aud'], [''])
         self.assertEqual(lesson['prep'], [''])
 
-    def test_one_time_move_uses_legacy_name_format_with_target_date(self):
+    def test_unmatched_transfer_stays_a_one_off_lesson_on_its_date(self):
         move = _item(id=55, type='query', everyweek=2, day=2, para=5, title='«Геология», перенос из Е-223')
         payload = {'schedule': [move], 'queries': [{'id': 55, 'dt': '2026-10-06'}]}
         doc, _ = self._parse({date(2026, 10, 5): payload})
         lesson = doc['schedule'][0]['lessons'][0]
-        self.assertEqual(lesson['name'], 'Разовый перенос «Геология», перенос из Е-223, на 2026.10.06 перенос')
+        self.assertEqual(lesson['name'], '«Геология», перенос из Е-223')
+        self.assertEqual(lesson['date'], '2026-10-06')
         self.assertEqual(lesson['week'], 'odd')
         self.assertEqual(lesson['time'], '15:30')
 
-    def test_transfer_far_in_the_future_is_collected_independently_of_regular_weeks(self):
-        move = _item(id=77, type='query', day=3, para=2, title='Физика')
+    def test_project_activity_far_in_the_future_is_a_dated_one_off(self):
+        project = _item(id=77, type='query', day=3, para=2, title='Модернизация &quot;Ярмарки проектов&quot;')
         doc, _ = self._parse(
             {date(2026, 9, 28): {'schedule': [_item()], 'queries': []}},
-            extra_transfers={'schedule': [move], 'queries': [{'id': 77, 'dt': '2026-11-25'}]},
+            extra_transfers={'schedule': [project], 'queries': [{'id': 77, 'dt': '2026-11-25', 'type': 0}]},
         )
-        names = [l['name'] for d in doc['schedule'] for l in d['lessons']]
-        self.assertIn('Разовый перенос Физика, на 2026.11.25 перенос', names)
-        moved = [l for d in doc['schedule'] for l in d['lessons'] if l['name'].startswith('Разовый')][0]
-        self.assertEqual(moved['week'], week_parity_of(date(2026, 11, 23)))
+        one_offs = [l for d in doc['schedule'] for l in d['lessons'] if l.get('date')]
+        self.assertEqual(len(one_offs), 1)
+        self.assertEqual(one_offs[0]['name'], 'Модернизация "Ярмарки проектов"')
+        self.assertEqual(one_offs[0]['date'], '2026-11-25')
+        self.assertEqual(one_offs[0]['week'], week_parity_of(date(2026, 11, 23)))
+        self.assertNotIn('transfers', [k for d in doc['schedule'] for l in d['lessons'] for k in l if not l.get('date')])
 
     def test_empty_week_falls_back_to_next_nearest_week_of_same_parity(self):
         doc, _ = self._parse({date(2026, 9, 14): {'schedule': [_item(everyweek=1)], 'queries': []}})
@@ -118,6 +122,84 @@ class TestApiClient(unittest.TestCase):
         with mock.patch.dict(os.environ, {'ISTU_API_KEY': ''}):
             with self.assertRaises(RuntimeError):
                 ISTUApiClient()
+
+
+class TestRoomTransfer(unittest.TestCase):
+    """Реальный случай ИСТб-24-2 (данные API за неделю 26.10.2026)."""
+
+    def setUp(self):
+        self.client = ISTUApiClient()
+        self.titles = {478236: 'ИСТб-24-2'}
+        self.teachers = {5160: 'Гордин А.С.'}
+        self.auds = {474: 'Ж-312', 825: 'В-104', 909: 'Ж-313'}
+
+    def _lab(self, **overrides):
+        lab = _item(id=13430001, day='3', para=2, everyweek=1, nt=3, ngroup=2, title='Основы информационной безопасности',
+                    groups=[478236], teachers_ids=[5160], auditories_ids=[474], auditories_verbose='Ж-312')
+        lab.update(overrides)
+        return lab
+
+    def _transfer_payload(self):
+        transfer = _item(id=193346, type='query', day='3', para=2, everyweek=2, nt=1, ngroup=None, groups=[],
+                         teachers_ids=[5160], auditories_ids=[474], auditories_verbose='',
+                         title='2-ая подгруппа «Основы информационной безопасности», перенос из Ж-312, '
+                               'причина: инженерные каникулы')
+        query = {
+            'id': 193346, 'day': 3, 'dt': '2026-10-28', 'para': 2, 'type': 2, 'auds': [474], 'groups': [478236],
+            'title': transfer['title'],
+            'related_queries': [
+                {'id': 193345, 'type': 1, 'dt': '2026-10-28', 'para': 2, 'auds': [825],
+                 'title': 'инженерные каникулы | перевод ИСТб-24-2-2, Гордин А.С. в В-104'},
+            ],
+        }
+        return transfer, query
+
+    def _parse(self, weeks):
+        transfer, query = self._transfer_payload()
+        group = {'group_id': 478236, 'name': 'ИСТб-24-2'}
+
+        def fake_week(group_id, monday):
+            return weeks.get(monday, {'schedule': [], 'queries': []})
+
+        with mock.patch.object(self.client, '_fetch_group_week', side_effect=fake_week), \
+                mock.patch.object(self.client, '_fetch_group_transfers',
+                                  return_value={'schedule': [transfer], 'queries': [query]}):
+            return self.client._parse_group(group, date(2026, 10, 28), self.titles, self.teachers, self.auds)
+
+    def test_transfer_moves_the_original_lab_to_the_new_room_instead_of_adding_a_class(self):
+        transfer, query = self._transfer_payload()
+        # На неделе переноса API убирает исходную пару, оставляя только карточку переноса;
+        # регулярная пара берётся со следующей недели той же чётности (09.11).
+        doc, events = self._parse({
+            date(2026, 10, 26): {'schedule': [transfer], 'queries': [query]},
+            date(2026, 11, 9): {'schedule': [self._lab()], 'queries': []},
+        })
+        lessons = [l for d in doc['schedule'] for l in d['lessons']]
+        self.assertEqual(len(lessons), 1)
+        lab = lessons[0]
+        self.assertEqual(lab['name'], 'Основы информационной безопасности')
+        self.assertEqual(lab['info'], '( Лаб. раб. подгруппа 2 )')
+        self.assertEqual(lab['aud'], ['Ж-312'])
+        self.assertEqual(lab['transfers'], [{
+            'date': '2026-10-28', 'to_date': '2026-10-28', 'to_time': '10:00', 'to_aud': ['В-104'],
+            'reason': 'инженерные каникулы',
+        }])
+
+        teacher_docs, aud_docs, _ = build_teacher_and_auditory_schedules(events)
+        teacher_lessons = [l for d in teacher_docs[0]['schedule'] for l in d['lessons']]
+        self.assertEqual(len(teacher_lessons), 1)
+        self.assertEqual(teacher_lessons[0]['transfers'][0]['to_aud'], ['В-104'])
+        new_room = [doc for doc in aud_docs if doc['aud'] == 'В-104'][0]
+        self.assertEqual(new_room['schedule'][0]['lessons'][0]['date'], '2026-10-28')
+
+    def test_unmatched_transfer_keeps_subgroup_from_text_and_new_room(self):
+        # Исходной пары нет ни на одной неделе — перенос остаётся разовым занятием.
+        doc, _ = self._parse({})
+        lesson = doc['schedule'][0]['lessons'][0]
+        self.assertEqual(lesson['date'], '2026-10-28')
+        self.assertEqual(lesson['info'], '( Лекция подгруппа 2 )')
+        self.assertEqual(lesson['aud'], ['В-104'])
+        self.assertEqual(doc['schedule'][0]['day'], 'среда')
 
 
 if __name__ == '__main__':

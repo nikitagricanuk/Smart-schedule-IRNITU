@@ -45,6 +45,33 @@ def _build_info(lesson_type: str, subgroup: Optional[str]) -> str:
     return f"( {normalized_type} )"
 
 
+def _same_slot(day_lesson: Dict[str, Any], lesson: Dict[str, Any]) -> bool:
+    return (
+        day_lesson["time"] == lesson["time"]
+        and day_lesson["week"] == lesson["week"]
+        and day_lesson["name"] == lesson["name"]
+        and day_lesson["info"] == lesson["info"]
+        and day_lesson.get("date") == lesson.get("date")
+    )
+
+
+def _merge_transfers(day_lesson: Dict[str, Any], lesson: Dict[str, Any]) -> None:
+    for record in lesson.get("transfers") or []:
+        transfers = day_lesson.setdefault("transfers", [])
+        if record not in transfers:
+            transfers.append(record)
+
+
+def _with_dated_fields(lesson: Dict[str, Any], event: Dict[str, Any]) -> Dict[str, Any]:
+    """Добавляет к паре дату разового занятия и переносы, только если они есть,
+    чтобы обычные пары в базе выглядели как раньше."""
+    if event.get("date"):
+        lesson["date"] = event["date"]
+    if event.get("transfers"):
+        lesson["transfers"] = list(event["transfers"])
+    return lesson
+
+
 def _sort_day_lessons(lessons: List[Dict[str, Any]]) -> None:
     lessons.sort(key=lambda item: item["info"])
     lessons.sort(key=lambda item: int(item["time"].replace(":", "")))
@@ -52,60 +79,48 @@ def _sort_day_lessons(lessons: List[Dict[str, Any]]) -> None:
 
 def _merge_group_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any]) -> None:
     for day_lesson in day_lessons:
-        same_signature = (
-            day_lesson["time"] == lesson["time"]
-            and day_lesson["week"] == lesson["week"]
-            and day_lesson["name"] == lesson["name"]
-            and day_lesson["info"] == lesson["info"]
-        )
-        if not same_signature:
+        if not _same_slot(day_lesson, lesson):
             continue
 
         if day_lesson["aud"] == lesson["aud"]:
             day_lesson["prep"] = _unique_preserve_order(day_lesson["prep"] + lesson["prep"])
+            _merge_transfers(day_lesson, lesson)
             return
         if day_lesson["prep"] == lesson["prep"]:
             day_lesson["aud"] = _unique_preserve_order(day_lesson["aud"] + lesson["aud"])
+            _merge_transfers(day_lesson, lesson)
             return
     day_lessons.append(lesson)
 
 
 def _merge_teacher_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any]) -> None:
     for day_lesson in day_lessons:
-        same_signature = (
-            day_lesson["time"] == lesson["time"]
-            and day_lesson["week"] == lesson["week"]
-            and day_lesson["name"] == lesson["name"]
-            and day_lesson["info"] == lesson["info"]
-        )
-        if not same_signature:
+        if not _same_slot(day_lesson, lesson):
             continue
 
         if day_lesson["aud"] == lesson["aud"]:
             day_lesson["groups"] = _unique_preserve_order(day_lesson["groups"] + lesson["groups"])
+            _merge_transfers(day_lesson, lesson)
             return
         if day_lesson["groups"] == lesson["groups"]:
             day_lesson["aud"] = _unique_preserve_order(day_lesson["aud"] + lesson["aud"])
+            _merge_transfers(day_lesson, lesson)
             return
     day_lessons.append(lesson)
 
 
 def _merge_aud_lesson(day_lessons: List[Dict[str, Any]], lesson: Dict[str, Any]) -> None:
     for day_lesson in day_lessons:
-        same_signature = (
-            day_lesson["time"] == lesson["time"]
-            and day_lesson["week"] == lesson["week"]
-            and day_lesson["name"] == lesson["name"]
-            and day_lesson["info"] == lesson["info"]
-        )
-        if not same_signature:
+        if not _same_slot(day_lesson, lesson):
             continue
 
         if day_lesson["prep"] == lesson["prep"]:
             day_lesson["groups"] = _unique_preserve_order(day_lesson["groups"] + lesson["groups"])
+            _merge_transfers(day_lesson, lesson)
             return
         if day_lesson["groups"] == lesson["groups"]:
             day_lesson["prep"] = _unique_preserve_order(day_lesson["prep"] + lesson["prep"])
+            _merge_transfers(day_lesson, lesson)
             return
     day_lessons.append(lesson)
 
@@ -129,7 +144,9 @@ def build_teacher_and_auditory_schedules(
         if not prep_meta:
             prep_meta = [(None, prep_name) for prep_name in event.get("prep_names", []) if prep_name]
 
-        for raw_prep_id, prep_name in prep_meta:
+        # aud_only — перенесённая пара в новой аудитории: у преподавателя она уже
+        # учтена переносом в transfers исходной пары.
+        for raw_prep_id, prep_name in ([] if event.get("aud_only") else prep_meta):
             prep_id = raw_prep_id
             if prep_id is None:
                 prep_id = 900000000 + (zlib.crc32(prep_name.encode("utf-8")) % 100000000)
@@ -144,14 +161,14 @@ def build_teacher_and_auditory_schedules(
                 }
 
             day_lessons = teachers_map[teacher_key]["days"].setdefault(event["day"], [])
-            _merge_teacher_lesson(day_lessons, {
+            _merge_teacher_lesson(day_lessons, _with_dated_fields({
                 "time": event["time"],
                 "week": event["week"],
                 "name": event["name"],
                 "aud": event_aud,
                 "info": event["info"],
                 "groups": event_groups,
-            })
+            }, event))
 
         prep_names = [prep_name for _, prep_name in prep_meta] or [""]
         for aud in event_aud:
@@ -165,14 +182,14 @@ def build_teacher_and_auditory_schedules(
                 }
 
             day_lessons = auditories_map[aud]["days"].setdefault(event["day"], [])
-            _merge_aud_lesson(day_lessons, {
+            _merge_aud_lesson(day_lessons, _with_dated_fields({
                 "time": event["time"],
                 "week": event["week"],
                 "name": event["name"],
                 "info": event["info"],
                 "prep": prep_names,
                 "groups": event_groups,
-            })
+            }, event))
 
     teacher_docs = []
     prepods = []

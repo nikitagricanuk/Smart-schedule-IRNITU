@@ -5,7 +5,8 @@ from functions import postgre_storage
 import data_conversion
 from functions.mongo_storage import MongodbService
 from functions.logger import logger
-from functions.istu_api_client import ISTUApiClient
+from functions.istu_api_client import ISTUApiClient, TZ_IRKUTSK
+from functions.schedule_changes import detect_changed_groups, detect_new_transfers
 
 from pymongo.errors import PyMongoError
 import psycopg2
@@ -127,30 +128,6 @@ def _build_hash(data) -> str:
     return hashlib.sha256(data_json.encode('utf-8')).hexdigest()
 
 
-def _detect_changed_groups(old_docs: list, new_docs: list) -> list:
-    """Определяет группы, у которых расписание реально изменилось (для уведомлений).
-
-    При первом наполнении базы (old_docs пуст) уведомлять не о чем — это не
-    изменение, а первичная загрузка данных.
-    """
-    if not old_docs:
-        return []
-
-    old_hashes = {doc['group']: _build_hash(doc.get('schedule', [])) for doc in old_docs if doc.get('group')}
-    changed_groups = []
-    for doc in new_docs:
-        group = doc.get('group')
-        if not group or not doc.get('schedule'):
-            continue
-        old_hash = old_hashes.get(group)
-        if old_hash is None:
-            continue  # новая группа - не с чем сравнивать, уведомлять некого
-        if old_hash != _build_hash(doc['schedule']):
-            changed_groups.append(group)
-
-    return changed_groups
-
-
 def _save_collection_if_changed(
     hash_name: str,
     data: list,
@@ -230,9 +207,12 @@ def processing_schedule_from_api():
         save_method=mongo_storage.save_teachers,
     )
     sorted_schedule = sorted(data['schedule'], key=lambda x: x['group'])
-    changed_groups = _detect_changed_groups(
-        old_docs=mongo_storage.get_data('schedule'),
+    old_schedule = mongo_storage.get_data('schedule')
+    changed_groups = detect_changed_groups(old_docs=old_schedule, new_docs=sorted_schedule)
+    new_transfers = detect_new_transfers(
+        old_docs=old_schedule,
         new_docs=sorted_schedule,
+        today=datetime.now(TZ_IRKUTSK).date(),
     )
     _save_collection_if_changed(
         hash_name='schedule',
@@ -244,6 +224,9 @@ def processing_schedule_from_api():
         logger.info(f'Schedule changed for {len(changed_groups)} group(s), queuing notifications: '
                     f'{", ".join(changed_groups[:10])}{"..." if len(changed_groups) > 10 else ""}')
         mongo_storage.record_schedule_changes(changed_groups)
+    if new_transfers:
+        logger.info(f'Found {len(new_transfers)} new one-off transfer(s), queuing notifications')
+        mongo_storage.record_transfer_notifications(new_transfers)
     _save_collection_if_changed(
         hash_name='prepods_schedule',
         data=sorted(data['prepods_schedule'], key=lambda x: (x['prep'], x['pg_id'])),

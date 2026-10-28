@@ -116,6 +116,17 @@ class MongodbService(object):
         docs = [{'group': group, 'changed_at': changed_at, 'notified': False} for group in groups]
         return self._db.schedule_changes.insert_many(docs)
 
+    def record_transfer_notifications(self, transfers: list):
+        """Записывает новые разовые переносы ({'group', 'transfer'}) для рассылки уведомлений."""
+        if not transfers:
+            return None
+        changed_at = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+        docs = [
+            {'group': item['group'], 'transfer': item['transfer'], 'changed_at': changed_at, 'notified': False}
+            for item in transfers
+        ]
+        return self._db.schedule_changes.insert_many(docs)
+
     def save_hash(self, hash_name: str, value: str):
         """Сохраняет контрольную сумму коллекции."""
         status = {
