@@ -19,12 +19,21 @@ DAY_ORDER = ['понедельник', 'вторник', 'среда', 'четв
 _LEGACY_TRANSFER_DATE_RE = re.compile(r'\bна\s+(\d{4})\.(\d{2})\.(\d{2})')
 
 
-def _time_key(value) -> int:
+def time_minutes(value) -> int:
+    """'8:15' -> 495 (минуты от полуночи)."""
     try:
         hours, minutes = str(value).split(':')
         return int(hours) * 60 + int(minutes)
     except ValueError:
         return 0
+
+
+def week_parity(day: date) -> str:
+    """Чётность недели даты ('odd'/'even'): неделя с 1 сентября — чётная (см. find_week)."""
+    sep = date(day.year if day.month >= 9 else day.year - 1, 9, 1)
+    week0_monday = sep - timedelta(days=sep.weekday())
+    monday = day - timedelta(days=day.weekday())
+    return 'odd' if ((monday - week0_monday).days // 7) % 2 else 'even'
 
 
 def one_off_date(lesson: dict):
@@ -114,7 +123,7 @@ def lessons_on_date(schedule: list, day: date, week: str = None) -> list:
                 stub['moved_away'] = moved_from_here[0]
                 result.append(stub)
 
-    result.sort(key=lambda item: _time_key(item.get('time')))
+    result.sort(key=lambda item: time_minutes(item.get('time')))
     return result
 
 
