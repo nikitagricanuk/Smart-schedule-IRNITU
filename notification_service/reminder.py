@@ -2,13 +2,12 @@ import locale
 import os
 import platform
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 import pytz
 
-import tools
-from tools.dated_lessons import lessons_on_date
+from tools.dated_lessons import lessons_on_date, time_minutes, transfer_note, week_parity
 from tools.storage import MongodbService
 from tools.logger import logger
 
@@ -18,59 +17,96 @@ locale_name = ('ru_RU.UTF-8' if platform.system() == 'Linux' else 'ru_RU')
 locale.setlocale(locale.LC_TIME, locale_name)
 
 
+def lessons_starting_at(schedule: list, moment: datetime) -> list:
+    """Пары, которые начинаются ровно в ``moment``, с учётом разовых переносов.
+
+    Пара, перенесённая на другую дату/время/аудиторию, напоминается в своё новое
+    время и с новой аудиторией; на старом месте напоминания нет.
+    """
+    day = moment.date()
+    minutes = moment.hour * 60 + moment.minute
+    return [
+        lesson for lesson in lessons_on_date(schedule, day, week_parity(day))
+        if not lesson.get('moved_away')
+        and lesson.get('name') != 'свободно'
+        and time_minutes(lesson.get('time')) == minutes
+    ]
+
+
+def reminder_text(lessons: list, notifications: int) -> str:
+    text = f'Через {notifications} минут пара\n'
+    for lesson in lessons:
+        text += '-------------------------------------------\n'
+        aud = ', '.join(item for item in lesson.get('aud') or [] if item)
+        text += f'Начало в {lesson["time"]}\n'
+        if aud:
+            text += f'Аудитория: {aud}\n'
+        text += f'{lesson["name"]}\n' \
+                f'{lesson.get("info", "")} {",".join(lesson.get("prep") or [])}\n'
+        note = transfer_note(lesson)
+        if note:
+            text += f'{note}\n'
+    text += '-------------------------------------------\n'
+    return text
+
+
 class Reminder:
-    def __init__(self, bot_platform: Literal['vk', 'tg'], bot):
+    def __init__(self, bot_platform: Literal['vk', 'tg'], bot, storage=None, now=None):
         self.platform = bot_platform
         self.__check_platform()
         self.bot = bot
-        self.storage = MongodbService()
-        self.users = []
+        self._storage = storage
+        self.now = now or (lambda: datetime.now(TZ_IRKUTSK))
+        self._last_minute = None
 
-    def sending_notifications(self):
-        for user in self.users:
-            chat_id = user['chat_id']
-            week = user['week']
-            time = user['time']
-            group = user['group']
-            notifications = user['notifications']
+    @property
+    def storage(self):
+        # Подключение к базе — при первом обращении, а не при создании объекта.
+        if self._storage is None:
+            self._storage = MongodbService()
+        return self._storage
 
+    def due_reminders(self, users: list, now: datetime) -> list:
+        """[(chat_id, текст)] для пользователей, у которых через ``notifications`` минут пара.
+
+        Время считается от реальной даты пары, а не от заранее посчитанного
+        расписания напоминаний по дням недели, поэтому перенос на другой день,
+        время или аудиторию учитывается автоматически.
+        """
+        schedules = {}
+        due = []
+        for user in users:
             try:
-                schedule = self.storage.get_schedule(group=group)['schedule']
+                notifications = int(user.get('notifications') or 0)
+            except (TypeError, ValueError):
+                continue
+            group = user.get('group')
+            if notifications <= 0 or not group or not user.get('chat_id'):
+                continue
+
+            if group not in schedules:
+                try:
+                    schedules[group] = (self.storage.get_schedule(group=group) or {}).get('schedule') or []
+                except Exception as e:
+                    logger.exception(f'Error (group: {group}):\n{e}')
+                    schedules[group] = []
+            lessons = lessons_starting_at(schedules[group], now + timedelta(minutes=notifications))
+            if lessons:
+                due.append((user['chat_id'], reminder_text(lessons, notifications)))
+        return due
+
+    def send(self, chat_id, text):
+        if self.platform == 'tg':
+            try:
+                self.bot.send_message(chat_id=chat_id, text=text)
             except Exception as e:
-                logger.exception(f'Error (group: {group}):\n{e}')
-                continue
-
-            # Пары сегодняшнего дня с учётом разовых переносов (перенесённые на другой день не напоминаем).
-            lessons = [
-                lesson for lesson in lessons_on_date(schedule, datetime.now(TZ_IRKUTSK).date(), week)
-                if not lesson.get('moved_away')
-            ]
-
-            # если не нашлось переходем к след user
-            if not lessons:
-                continue
-
-            lessons_for_reminders = tools.forming_message_text(lessons=lessons, week=week, time=time)
-
-            # если пары не нашлись переходим к след user
-            if not lessons_for_reminders:
-                continue
-
-            # Отправляем сообщение пользователю
-            text = f'Через {notifications} минут пара\n' \
-                   f'{lessons_for_reminders}'
-
-            if self.platform == 'tg':
-                try:
-                    self.bot.send_message(chat_id=chat_id, text=text)
-                except Exception as e:
-                    logger.exception(f'---TG---\n{e}')
-            elif self.platform == 'vk':
-                try:
-                    logger.info(f'vk send user_id: {chat_id}')
-                    self.bot.method('messages.send', {'user_id': chat_id, 'message': text, 'random_id': 0})
-                except Exception as e:
-                    logger.exception(f'---VK---\n{e}')
+                logger.exception(f'---TG---\n{e}')
+        elif self.platform == 'vk':
+            try:
+                logger.info(f'vk send user_id: {chat_id}')
+                self.bot.method('messages.send', {'user_id': chat_id, 'message': text, 'random_id': 0})
+            except Exception as e:
+                logger.exception(f'---VK---\n{e}')
 
     def __check_platform(self):
         """Проверка, что работает для такой платформы"""
@@ -81,47 +117,23 @@ class Reminder:
         else:
             raise ValueError(f'Нет такой платформы: {self.platform}')
 
-    def search_for_reminders(self):
-        logger.info(f'{self.platform} сработало')
-        # определяем время сейчас
-        time_now = datetime.now(TZ_IRKUTSK)
-        day_now = datetime.now(TZ_IRKUTSK).strftime('%A').lower()
+    def get_users(self) -> list:
+        if self.platform == 'vk':
+            return self.storage.get_users_with_reminders_vk()
+        return self.storage.get_users_with_reminders_tg()
 
+    def search_for_reminders(self):
         # выполняем функцию каждые 60 секунд
         threading.Timer(60, self.search_for_reminders).start()
 
-        # minutes_now = time_now.strftime('%M')
+        now = self.now().replace(second=0, microsecond=0)
+        # Таймер может сработать дважды за одну минуту — не отправляем одно напоминание два раза.
+        if now == self._last_minute:
+            return
+        self._last_minute = now
 
-        self.users = []
-
-        # получаем пользователей у которых включены напоминания
-        if self.platform == 'vk':
-            reminders = self.storage.get_users_with_reminders_vk()
-        elif self.platform == 'tg':
-            reminders = self.storage.get_users_with_reminders_tg()
-
-        for reminder in reminders:
-            week = tools.find_week()
-
-            if 'reminders' not in reminder.keys():
-                continue
-
-            # если у пользователя пустой reminders то None
-            user_days = reminder['reminders'].get(week)
-            if not user_days:
-                continue
-            # если у пользователя нет ткущего дня, то None
-            user_day_reminder_time = user_days.get(day_now.lower())
-
-            # если время совпадает с текущим, добавляем в список на отправку
-            if tools.check_that_user_has_reminder_enabled_for_the_current_time(time_now,
-                                                                               user_day_reminder_time):
-                chat_id = reminder['chat_id']
-                group = reminder['group']
-                notifications = reminder['notifications']
-
-                user = tools.forming_user_to_submit(chat_id, group, notifications, day_now, time_now, week)
-                self.users.append(user)
-
-        # после того как список сформирован, нужно отправить его боту
-        self.sending_notifications()
+        try:
+            for chat_id, text in self.due_reminders(self.get_users(), now):
+                self.send(chat_id, text)
+        except Exception as e:
+            logger.exception(f'{self.platform} reminders iteration failed: {e}')

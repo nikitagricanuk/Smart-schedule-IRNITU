@@ -203,5 +203,49 @@ class TestRoomTransfer(unittest.TestCase):
         self.assertEqual(doc['schedule'][0]['day'], 'среда')
 
 
+class TestDateAndSlotTransfers(unittest.TestCase):
+    """Перенос на другую дату/пару: исходная пара находится по дате и паре из текста."""
+
+    def setUp(self):
+        self.client = ISTUApiClient()
+        self.auds = {1: 'В-202', 2: 'Б-118а'}
+
+    def _parse(self, card, query, regular):
+        group = {'group_id': 10, 'name': 'ИСТб-25-2'}
+
+        def fake_week(group_id, monday):
+            return {'schedule': regular, 'queries': []}
+
+        with mock.patch.object(self.client, '_fetch_group_week', side_effect=fake_week), \
+                mock.patch.object(self.client, '_fetch_group_transfers',
+                                  return_value={'schedule': [card], 'queries': [query]}):
+            doc, _ = self.client._parse_group(group, date(2026, 10, 26), {10: 'ИСТб-25-2'}, {}, self.auds)
+        return [l for d in doc['schedule'] for l in d['lessons']]
+
+    def test_transfer_to_another_date_and_room(self):
+        # Пятница 23.10 (нечётная неделя), 2-я пара -> четверг 29.10, 3-я пара, Б-118а.
+        regular = [_item(id=5, day='5', para=2, everyweek=2, nt=3, ngroup=1, title='Базы данных',
+                         groups=[10], auditories_ids=[1])]
+        card = _item(id=9, type='query', day='4', para=3, nt=1, ngroup=None, groups=[], auditories_ids=[2],
+                     title='1-ая подгруппа «Базы данных», перенос с 2026.10.23')
+        lessons = self._parse(card, {'id': 9, 'dt': '2026-10-29', 'type': 2}, regular)
+        self.assertEqual(len(lessons), 1)
+        self.assertEqual(lessons[0]['transfers'], [
+            {'date': '2026-10-23', 'to_date': '2026-10-29', 'to_time': '11:45', 'to_aud': ['Б-118а']}])
+
+    def test_transfer_to_another_pair_same_day(self):
+        regular = [
+            _item(id=5, day='3', para=5, everyweek=2, nt=2, title='Детали машин', groups=[10], auditories_ids=[1]),
+            _item(id=6, day='3', para=2, everyweek=2, nt=1, title='Детали машин', groups=[10], auditories_ids=[1]),
+        ]
+        card = _item(id=9, type='query', day='3', para=1, nt=1, groups=[], auditories_ids=[1],
+                     title='«Детали машин», перенос с 5-ой пары')
+        lessons = self._parse(card, {'id': 9, 'dt': '2026-10-28', 'type': 2}, regular)
+        moved = [l for l in lessons if l.get('transfers')]
+        self.assertEqual(len(moved), 1)
+        self.assertEqual(moved[0]['time'], '15:30')
+        self.assertEqual(moved[0]['transfers'][0]['to_time'], '8:15')
+
+
 if __name__ == '__main__':
     unittest.main()

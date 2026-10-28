@@ -94,6 +94,29 @@ class TestTransfers(unittest.TestCase):
         self.assertEqual(override['dtstart'].dt.astimezone(TZ_IRKUTSK),
                          TZ_IRKUTSK.localize(datetime(2026, 10, 30, 11, 45)))
 
+    def test_time_only_transfer_and_biweekly_series(self):
+        # нечётная пара (неделя 02.11), перенос на 15:30 того же дня
+        lesson = _lesson('Физика', week='odd', time='10:00', aud=['Ж-312'],
+                         transfers=[{'date': '2026-11-04', 'to_date': '2026-11-04', 'to_time': '15:30',
+                                     'to_aud': ['Ж-312']}])
+        series, override = self._calendar_events(lesson)
+        self.assertEqual(override['uid'], series['uid'])
+        self.assertEqual(override['recurrence-id'].dt.astimezone(TZ_IRKUTSK),
+                         TZ_IRKUTSK.localize(datetime(2026, 11, 4, 10, 0)))
+        self.assertEqual(override['dtstart'].dt.astimezone(TZ_IRKUTSK),
+                         TZ_IRKUTSK.localize(datetime(2026, 11, 4, 15, 30)))
+        self.assertIn('с 04.11 10:00', str(override['description']))
+
+    def test_transfer_on_a_date_that_is_not_an_occurrence_is_ignored_safely(self):
+        # 28.10 — чётная неделя, а пара нечётная: такого повторения нет, но перенос в будущем
+        # всё равно показываем отдельным событием.
+        lesson = _lesson('Физика', week='odd', time='10:00', aud=['Ж-312'],
+                         transfers=[{'date': '2026-10-28', 'to_date': '2026-10-29', 'to_time': '10:00',
+                                     'to_aud': ['В-104']}])
+        series, extra = self._calendar_events(lesson)
+        self.assertNotEqual(extra['uid'], series['uid'])
+        self.assertNotIn('recurrence-id', extra)
+
     def test_one_off_with_date_field_and_other_subgroup_is_filtered(self):
         other_subgroup = _lesson('«Физика», перенос из В-208', week='even', time='10:00',
                                  info='( Лекция подгруппа 2 )', date='2026-10-28')
