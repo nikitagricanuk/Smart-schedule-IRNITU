@@ -38,6 +38,12 @@ class TestScheduleChanges(unittest.TestCase):
         new = [_doc(dict(LAB, transfers=[TRANSFER, dict(TRANSFER, date='2026-10-21', to_date='2026-10-21')]))]
         self.assertEqual(detect_new_transfers(old, new, today=date(2026, 10, 27)), [])
 
+    def test_transfer_earlier_today_is_not_reported(self):
+        old = [_doc(LAB, PROJECT)]
+        new = [_doc(dict(LAB, transfers=[TRANSFER]), PROJECT)]
+        self.assertEqual(detect_new_transfers(old, new, today=date(2026, 10, 28), now_time='13:05'), [])
+        self.assertEqual(len(detect_new_transfers(old, new, today=date(2026, 10, 28), now_time='9:30')), 1)
+
     def test_first_run_after_upgrade_does_not_notify_about_every_existing_transfer(self):
         legacy = [_doc(LAB, dict(LAB, name='Разовый перенос «X», перенос из Ж-312, на 2026.10.28 перенос'))]
         new = [_doc(dict(LAB, transfers=[TRANSFER]))]

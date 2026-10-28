@@ -53,13 +53,25 @@ class TestTransferQueries(unittest.TestCase):
         self.assertTrue(is_transfer(None, '«Геология», перенос из Е-223'))
         self.assertFalse(is_transfer(None, 'Интерактивная игра'))
 
-    def test_new_room_comes_from_the_transfer_order(self):
-        query = {'type': 2, 'related_queries': [
-            {'type': 1, 'auds': [505], 'title': 'День открытых дверей | перевод ИСТб-24-2-1, Бучнев О.С. в Б-118а'},
-        ]}
-        self.assertEqual(transfer_target_auditories(query, {505: 'Б-118а'}), ['Б-118а'])
-        self.assertEqual(transfer_target_auditories(query, {}), ['Б-118а'])
-        self.assertEqual(transfer_target_auditories({'type': 2}, {}), [])
+    # Реальная пара 31.10.2026 (ИСТб-24-2): карточка auditories_ids [1091] = Б-118а (куда),
+    # приказ auds [505] = В-208 (откуда), текст приказа "... в Б-118а".
+    NAMES = {1091: 'Б-118а', 505: 'В-208'}
+    ORDER = {'type': 2, 'related_queries': [
+        {'type': 1, 'auds': [505], 'title': 'День открытых дверей | перевод ИСТб-24-2-1, Бучнев О.С. в Б-118а'},
+    ]}
+
+    def test_new_room_is_the_cards_own_room_not_the_orders_ids(self):
+        card = {'auditories_ids': [1091]}
+        self.assertEqual(transfer_target_auditories(card, self.ORDER, self.NAMES, 'В-208'), ['Б-118а'])
+
+    def test_falls_back_to_order_text_and_never_returns_the_old_room(self):
+        unknown_card = {'auditories_ids': [999]}
+        self.assertEqual(transfer_target_auditories(unknown_card, self.ORDER, self.NAMES, 'В-208'), ['Б-118а'])
+        same_as_old = {'auditories_ids': [505]}
+        self.assertEqual(transfer_target_auditories(same_as_old, self.ORDER, self.NAMES, 'В-208'), ['Б-118а'])
+        no_text = {'type': 2, 'related_queries': [{'type': 1, 'auds': [505], 'title': 'перевод'}]}
+        self.assertEqual(transfer_target_auditories({}, no_text, self.NAMES, 'В-208'), [])
+        self.assertEqual(transfer_target_auditories({}, {'type': 2}, {}, None), [])
 
 
 class TestFindOriginalLesson(unittest.TestCase):

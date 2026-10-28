@@ -213,6 +213,7 @@ def processing_schedule_from_api():
         old_docs=old_schedule,
         new_docs=sorted_schedule,
         today=datetime.now(TZ_IRKUTSK).date(),
+        now_time=datetime.now(TZ_IRKUTSK).strftime('%H:%M'),
     )
     _save_collection_if_changed(
         hash_name='schedule',
