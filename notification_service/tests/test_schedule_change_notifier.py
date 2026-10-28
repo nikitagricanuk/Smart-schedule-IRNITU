@@ -3,7 +3,7 @@ from datetime import datetime
 
 from aiogram.utils.exceptions import BotBlocked, NetworkError
 
-from schedule_change_notifier import ScheduleChangeNotifier
+from schedule_change_notifier import ScheduleChangeNotifier, transfer_text
 
 NOW = datetime(2026, 10, 28, 1, 10, 0)
 
@@ -112,6 +112,48 @@ class TestScheduleChangeNotifier(unittest.TestCase):
 
         self.assertEqual(bot.sent, [])
         self.assertEqual(storage.gave_up, ['change-1'])
+
+
+class TestTransferNotifications(unittest.TestCase):
+    TRANSFER = {
+        'name': 'Основы информационной безопасности', 'info': '( Лаб. раб. подгруппа 2 )', 'subgroup': 2,
+        'time': '10:00', 'aud': ['Ж-312'], 'date': '2026-10-28', 'to_date': '2026-10-28', 'to_time': '10:00',
+        'to_aud': ['В-104'], 'reason': 'инженерные каникулы',
+    }
+
+    def test_room_transfer_says_what_changed_and_skips_the_other_subgroup(self):
+        bot = FakeBot()
+        change = dict(make_change(group='ИСТб-24-2'), transfer=self.TRANSFER)
+        storage = FakeStorage(
+            changes=[change],
+            users_by_group={'ИСТб-24-2': [{'chat_id': 1, 'subgroup': 1}, {'chat_id': 2, 'subgroup': 2},
+                                         {'chat_id': 3, 'subgroup': 0}, {'chat_id': 4}]},
+        )
+
+        ScheduleChangeNotifier(bot=bot, storage=storage, now=lambda: NOW).process_pending()
+
+        self.assertEqual([chat_id for chat_id, _ in bot.sent], [2, 3, 4])
+        self.assertEqual(bot.sent[0][1], (
+            '🔄 Перенос занятия, группа ИСТб-24-2\n'
+            '👉 Основы информационной безопасности ( Лаб. раб. подгруппа 2 )\n'
+            '📅 Ср, 28.10 в 10:00\n'
+            '🏫 Аудитория: Ж-312 → В-104\n'
+            'Причина: инженерные каникулы'
+        ))
+        self.assertEqual(storage.marked_notified, ['change-1'])
+
+    def test_date_and_time_transfer_text(self):
+        text = transfer_text('ИСТб-25-2', dict(self.TRANSFER, date='2026-10-23', to_date='2026-10-29',
+                                                to_time='11:45', to_aud=['Ж-312'], reason=None))
+        self.assertIn('📅 Пт, 23.10 в 10:00 → Чт, 29.10 в 11:45', text)
+        self.assertIn('🏫 Аудитория: Ж-312', text)
+        self.assertNotIn('→ Ж-312', text)
+
+    def test_unmatched_transfer_text(self):
+        text = transfer_text('ИСТб-24-2', {'name': '«Физика», перенос из В-208', 'info': '( Лекция )',
+                                           'to_date': '2026-10-29', 'to_time': '11:45', 'to_aud': ['Б-118а']})
+        self.assertIn('📅 Чт, 29.10 в 11:45', text)
+        self.assertIn('🏫 Аудитория: Б-118а', text)
 
 
 if __name__ == '__main__':

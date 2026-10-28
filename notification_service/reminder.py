@@ -8,6 +8,7 @@ from typing import Literal
 import pytz
 
 import tools
+from tools.dated_lessons import lessons_on_date
 from tools.storage import MongodbService
 from tools.logger import logger
 
@@ -29,7 +30,6 @@ class Reminder:
         for user in self.users:
             chat_id = user['chat_id']
             week = user['week']
-            day_now = user['day']
             time = user['time']
             group = user['group']
             notifications = user['notifications']
@@ -40,8 +40,11 @@ class Reminder:
                 logger.exception(f'Error (group: {group}):\n{e}')
                 continue
 
-            # Получение расписания из нужного дня.
-            lessons = tools.get_schedule_from_right_day(schedule=schedule, day_now=day_now)
+            # Пары сегодняшнего дня с учётом разовых переносов (перенесённые на другой день не напоминаем).
+            lessons = [
+                lesson for lesson in lessons_on_date(schedule, datetime.now(TZ_IRKUTSK).date(), week)
+                if not lesson.get('moved_away')
+            ]
 
             # если не нашлось переходем к след user
             if not lessons:

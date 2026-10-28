@@ -1,4 +1,4 @@
-"""Уведомляет пользователей Telegram об изменении расписания их группы."""
+"""Уведомляет пользователей Telegram об изменении расписания их группы и о разовых переносах пар."""
 
 import time
 from datetime import datetime, timedelta
@@ -14,6 +14,58 @@ MAX_DELIVERY_AGE = timedelta(hours=24)
 
 # Ошибки, при которых повтор бесполезен: бот заблокирован, чат не найден и т.п.
 PERMANENT_ERRORS = (Unauthorized, BadRequest)
+
+
+WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+
+
+def _format_day(iso_date: str) -> str:
+    try:
+        day = datetime.strptime(iso_date, '%Y-%m-%d')
+    except (TypeError, ValueError):
+        return iso_date or ''
+    return f'{WEEKDAYS[day.weekday()]}, {day.strftime("%d.%m")}'
+
+
+def _format_aud(aud) -> str:
+    return ', '.join(item for item in aud or [] if item)
+
+
+def transfer_text(group: str, transfer: dict) -> str:
+    """Текст уведомления о разовом переносе: что было и что стало."""
+    lines = [f'🔄 Перенос занятия, группа {group}',
+             f'👉 {transfer.get("name")} {transfer.get("info") or ""}'.rstrip()]
+    to_when = f'{_format_day(transfer.get("to_date"))} в {transfer.get("to_time")}'
+    old_aud, new_aud = _format_aud(transfer.get('aud')), _format_aud(transfer.get('to_aud'))
+
+    if not transfer.get('date'):
+        # Исходную пару не нашли — сообщаем, где и когда пройдёт занятие.
+        lines.append(f'📅 {to_when}')
+        if new_aud:
+            lines.append(f'🏫 Аудитория: {new_aud}')
+    else:
+        if transfer['date'] != transfer.get('to_date'):
+            lines.append(f'📅 {_format_day(transfer["date"])} в {transfer.get("time")} → {to_when}')
+        else:
+            lines.append(f'📅 {_format_day(transfer["date"])}')
+            if transfer.get('time') != transfer.get('to_time'):
+                lines.append(f'🕒 Время: {transfer.get("time")} → {transfer.get("to_time")}')
+            else:
+                lines[-1] += f' в {transfer.get("time")}'
+        if new_aud and new_aud != old_aud:
+            lines.append(f'🏫 Аудитория: {old_aud} → {new_aud}' if old_aud else f'🏫 Аудитория: {new_aud}')
+        elif new_aud:
+            lines.append(f'🏫 Аудитория: {new_aud}')
+
+    if transfer.get('reason'):
+        lines.append(f'Причина: {transfer["reason"]}')
+    return '\n'.join(lines)
+
+
+def _user_in_subgroup(user: dict, subgroup) -> bool:
+    """Перенос одной подгруппы не касается тех, кто выбрал в боте другую подгруппу."""
+    user_subgroup = int(user.get('subgroup') or 0)
+    return not subgroup or not user_subgroup or user_subgroup == subgroup
 
 
 class DeliveryInterrupted(Exception):
@@ -43,11 +95,17 @@ class ScheduleChangeNotifier:
         """
         group = change['group']
         delivered = set(change.get('delivered_to') or [])
-        text = (
-            f'📅 Расписание группы {group} изменилось!\n'
-            f'Откройте раздел "Расписание", чтобы увидеть актуальные пары.'
-        )
+        transfer = change.get('transfer')
+        if transfer:
+            text = transfer_text(group, transfer)
+        else:
+            text = (
+                f'📅 Расписание группы {group} изменилось!\n'
+                f'Откройте раздел "Расписание", чтобы увидеть актуальные пары.'
+            )
         for user in self.storage.get_tg_users_for_group(group):
+            if transfer and not _user_in_subgroup(user, transfer.get('subgroup')):
+                continue
             chat_id = user.get('chat_id')
             if not chat_id or chat_id in delivered:
                 continue

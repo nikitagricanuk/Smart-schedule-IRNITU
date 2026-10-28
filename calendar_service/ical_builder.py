@@ -40,6 +40,13 @@ def _parse_transfer_date(name: str):
         return None
 
 
+def _parse_iso_date(value):
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return None
+
+
 def _lesson_subgroup(lesson: dict) -> int:
     """Номер подгруппы из поля info ('( Лаб. раб. подгруппа 2 )'), 0 — для всей группы."""
     match = _SUBGROUP_RE.search(lesson.get('info') or '')
@@ -112,14 +119,16 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
     except ValueError:
         return None
 
-    one_time = _is_one_time_transfer(name)
+    # Новый формат: разовое занятие несёт дату в поле date (см. getting_schedule).
+    lesson_date = _parse_iso_date(lesson.get('date'))
+    one_time = lesson_date is not None or _is_one_time_transfer(name)
     # 'на YYYY.MM.DD' указывает вперёд — это дата, куда занятие перенесено,
     # берём её напрямую вместо дня недели/чётности. Другой одноразовый вариант,
     # '... перенос с YYYY.MM.DD' без 'на DATE', — это уже сама перенесённая
     # карточка, стоящая на своём новом дне/времени; дата в названии старая
     # (откуда перенесли) и для вычисления occurrence не годится, поэтому для
     # неё (как и для обычных занятий) считаем дату по дню недели и чётности.
-    transfer_date = _parse_transfer_date(name) if one_time else None
+    transfer_date = lesson_date or (_parse_transfer_date(name) if one_time else None)
     if transfer_date is not None:
         if transfer_date < week_start.date():
             return None
@@ -180,6 +189,71 @@ def _build_event(day_name: str, lesson: dict, monday, week_start, horizon_end) -
     return event
 
 
+def _aud_str(aud) -> str:
+    return ', '.join(item for item in aud or [] if item)
+
+
+def _transfer_events(lesson: dict, series: Event, week_start, horizon_end) -> list:
+    """Разовые переносы регулярной пары (lesson['transfers']).
+
+    Перенесённое занятие — это изменённое повторение той же серии (тот же UID и
+    RECURRENCE-ID исходного занятия), поэтому календарь показывает пару на новом
+    месте/времени вместо исходной, а не лишним событием рядом с ней.
+    """
+    events = []
+    if 'rrule' not in series:
+        return events
+    series_start = series['dtstart'].dt.astimezone(TZ_IRKUTSK)
+    interval = series['rrule'].get('INTERVAL', 1)
+    interval_days = 7 * int(interval[0] if isinstance(interval, (list, tuple)) else interval)
+    location = str(series.get('location', ''))
+    description = str(series.get('description', '')) if series.get('description') else ''
+
+    for record in lesson.get('transfers') or []:
+        original_date = _parse_iso_date(record.get('date'))
+        target_date = _parse_iso_date(record.get('to_date'))
+        if original_date is None or target_date is None:
+            continue
+        original = TZ_IRKUTSK.localize(datetime(
+            original_date.year, original_date.month, original_date.day, series_start.hour, series_start.minute))
+        in_series = (
+            series_start <= original <= horizon_end
+            and (original.date() - series_start.date()).days % interval_days == 0
+        )
+        if not in_series and target_date < week_start.date():
+            continue
+        try:
+            hours, minutes = (int(part) for part in (record.get('to_time') or '').split(':'))
+        except ValueError:
+            hours, minutes = series_start.hour, series_start.minute
+        start = TZ_IRKUTSK.localize(datetime(target_date.year, target_date.month, target_date.day, hours, minutes))
+
+        new_location = _aud_str(record.get('to_aud')) or location
+        note = 'Разовый перенос'
+        if original_date != target_date or (hours, minutes) != (series_start.hour, series_start.minute):
+            note += f" с {original.strftime('%d.%m %H:%M')}"
+        if new_location != location:
+            note += f', аудитория {location} → {new_location}'
+        if record.get('reason'):
+            note += f" (причина: {record['reason']})"
+
+        event = Event()
+        event.add('summary', f"🔄 {series['summary']}")
+        event.add('dtstart', start.astimezone(pytz.utc))
+        event.add('dtend', (start + timedelta(minutes=LESSON_DURATION_MINUTES)).astimezone(pytz.utc))
+        event.add('location', new_location)
+        event.add('description', '\n'.join(line for line in (note, description) if line))
+        if in_series:
+            event['uid'] = series['uid']
+            event.add('recurrence-id', original.astimezone(pytz.utc))
+        else:
+            # Исходное занятие вне окна подписки — показываем перенос отдельным событием.
+            event['uid'] = _stable_uid('transfer', series['uid'], record.get('date'), record.get('to_date'))
+        event.add('dtstamp', datetime.now(pytz.utc))
+        events.append(event)
+    return events
+
+
 def build_calendar(schedule_doc: dict, calendar_name: str, subgroup: int = 0) -> bytes:
     """Строит .ics со всеми занятиями из документа расписания (группы или преподавателя).
 
@@ -208,5 +282,7 @@ def build_calendar(schedule_doc: dict, calendar_name: str, subgroup: int = 0) ->
             event = _build_event(day_name, lesson, monday, week_start, horizon_end)
             if event is not None:
                 cal.add_component(event)
+                for override in _transfer_events(lesson, event, week_start, horizon_end):
+                    cal.add_component(override)
 
     return cal.to_ical()

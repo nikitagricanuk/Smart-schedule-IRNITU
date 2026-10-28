@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+from tools.dated_lessons import transfer_note
+
 DEBUG = False
 
 
@@ -95,6 +97,9 @@ def forming_message_text(lessons, week, time):
                                      f'{aud}' \
                                      f'{name}\n' \
                                      f'{info} {",".join(prep)}\n'
+            note = transfer_note(lesson)
+            if note:
+                lessons_for_reminders += f'{note}\n'
             count += 1
 
     if count > 0:
